@@ -26,14 +26,17 @@ is no longer required to reproduce this compiler stage once the pair exists.
 The canonical opcode manifest must exactly match the vocabularies embedded in
 lower, decode, and emit. `scan.pir` exercises unsigned `lt`, `argv`, `open`, and
 `close` through the Python, self-hosted, and fixed-point generations.
+`capability.pir` exercises maximum-width u64 construction, eight-argument direct
+calls, and eight-argument indirect invokes through the same three generations.
 
 `lower.pir` assigns named registers to explicit frame slots and scopes labels by
 function while retaining only one function's small symbol map. `emit.pir`
-consumes that normalized token stream. The fixed-point emitter remains bounded:
-u64 immediates fit one `movz`, calls have at most four arguments, and the listed
-bitwise operations now match the oracle. These are seed
-constraints, not proposed surface-language semantics. Later stages can add
-channels, structured IR, syntax, types, and macros from inside the closure.
+consumes that normalized token stream. The fixed-point emitter remains bounded
+while matching the oracle's operand envelope: u64 literals use one mandatory
+low `movz` and up to three assembler-selected `movk` fragments, and calls use at
+most the eight arm64 argument registers. These are seed constraints, not
+proposed surface-language semantics. Later stages can add channels, structured
+IR, syntax, types, and macros from inside the closure.
 
 Build the current vertical slice with:
 

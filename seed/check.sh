@@ -22,6 +22,7 @@ python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
 python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 python3 "$root/seed/boot.py" "$root/seed/bitwise.pir" "$work/bitwise.s"
+python3 "$root/seed/boot.py" "$root/seed/capability.pir" "$work/capability.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.s" -o "$work/profile"
@@ -38,6 +39,7 @@ python3 "$root/seed/boot.py" "$root/seed/bitwise.pir" "$work/bitwise.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.s" -o "$work/bitwise"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.s" -o "$work/capability"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
@@ -48,6 +50,7 @@ $work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 hello=$($work/hello)
 test "$hello" = "hello, plang"
 test "$($work/bitwise)" = "bitwise ok"
+test "$($work/capability)" = "capability ok"
 test "$($work/profile)" = "profile ok"
 test "$($work/channel)" = "channel ok"
 test "$($work/await)" = "ABCawait ok
@@ -266,6 +269,10 @@ $work/lex "$root/seed/bitwise.pir" | $work/lower | $work/emit > "$work/bitwise.s
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.self.s" -o "$work/bitwise.self"
 test "$($work/bitwise.self)" = "bitwise ok"
 
+$work/lex "$root/seed/capability.pir" | $work/lower | $work/emit > "$work/capability.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.self.s" -o "$work/capability.self"
+test "$($work/capability.self)" = "capability ok"
+
 $work/lex "$root/seed/scan.pir" | $work/lower | $work/emit > "$work/scan.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.self.s" -o "$work/scan.self"
 test "$($work/scan.self "$root/seed/hello.pir")" = "scan ok"
@@ -339,6 +346,10 @@ test "$($work/hello.fixed)" = "hello, plang"
 $work/lex "$root/seed/bitwise.pir" | $work/lower.self | $work/emit.self > "$work/bitwise.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.fixed.s" -o "$work/bitwise.fixed"
 test "$($work/bitwise.fixed)" = "bitwise ok"
+
+$work/lex "$root/seed/capability.pir" | $work/lower.self | $work/emit.self > "$work/capability.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.fixed.s" -o "$work/capability.fixed"
+test "$($work/capability.fixed)" = "capability ok"
 
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"

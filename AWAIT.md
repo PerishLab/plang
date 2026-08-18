@@ -27,9 +27,9 @@ only states accepted by enqueue; `runnable=4`, `done=5`, and `detached=6` are
 rejected by one bounded range check. Wait registration accepts only the
 singleton interval `running=0`; the push policy is its target placement, with
 `runnable=4` selecting the scheduler interval and waiter targets selecting the
-singleton. This stays within the four-argument seed ABI and the self-hosted
-emitter's current opcode set. Dequeue
-requires exactly `runnable` and
+singleton. This helper currently needs only four arguments within the
+eight-argument seed ABI and the self-hosted emitter's current opcode set.
+Dequeue requires exactly `runnable` and
 changes it to `running` only when the FIFO commit occurs. An invalid queue head
 is reported to `scheduler_run` through a private sentinel and becomes scheduler
 failure rather than false idle.

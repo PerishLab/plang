@@ -13,7 +13,15 @@ bytes texthead ".section __TEXT,__text,regular,pure_instructions\n.p2align 2\n.g
 bytes mainname "_main"
 bytes pirname "_pir_"
 bytes prologue ":\n    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n    sub sp, sp, #240\n"
-bytes movz "    movz x9, #"
+bytes movz "    movz x9, #("
+bytes immlow " & 0xffff)\n"
+bytes imm16a "    .if (("
+bytes imm16b " >> 16) & 0xffff)\n    movk x9, #(("
+bytes imm16c " >> 16) & 0xffff), lsl #16\n    .endif\n"
+bytes imm32b " >> 32) & 0xffff)\n    movk x9, #(("
+bytes imm32c " >> 32) & 0xffff), lsl #32\n    .endif\n"
+bytes imm48b " >> 48) & 0xffff)\n    movk x9, #(("
+bytes imm48c " >> 48) & 0xffff), lsl #48\n    .endif\n"
 bytes arghead "    stur x"
 bytes store "\n    stur x9, [x29, #-"
 bytes store0 "    stur x0, [x29, #-"
@@ -23,6 +31,10 @@ bytes load0 "    ldur x0, [x29, #-"
 bytes load1 "    ldur x1, [x29, #-"
 bytes load2 "    ldur x2, [x29, #-"
 bytes load3 "    ldur x3, [x29, #-"
+bytes load4 "    ldur x4, [x29, #-"
+bytes load5 "    ldur x5, [x29, #-"
+bytes load6 "    ldur x6, [x29, #-"
+bytes load7 "    ldur x7, [x29, #-"
 bytes load10 "    ldur x10, [x29, #-"
 bytes load11 "    ldur x11, [x29, #-"
 bytes alloc "    bl _plang_alloc\n    stur x0, [x29, #-"
@@ -387,6 +399,32 @@ call %blen next 3 %fd %b %capacity
 data %piece %piecesize movz
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %b %blen
+data %piece %piecesize immlow
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize imm16a
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize imm16b
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize imm16c
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize imm16a
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize imm32b
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize imm32c
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize imm16a
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize imm48b
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize imm48c
+call %wrote put 2 %piece %piecesize
 data %piece %piecesize store
 call %wrote put 2 %piece %piecesize
 call %wrote reg 2 %a %alen
@@ -783,8 +821,48 @@ call %wrote reg 2 %op %code
 data %piece %piecesize close
 call %wrote put 2 %piece %piecesize
 u64 %char 52
+eq %test %byte %char
+nonzero %test call_arg4
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load4
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 53
+eq %test %byte %char
+nonzero %test call_arg5
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load5
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 54
+eq %test %byte %char
+nonzero %test call_arg6
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load6
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 55
+eq %test %byte %char
+nonzero %test call_arg7
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load7
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 56
 ne %test %byte %char
 nonzero %test invalid
+label call_arg7
+label call_arg6
+label call_arg5
+label call_arg4
 label call_emit
 nonzero %value invoke_emit
 data %piece %piecesize calla
