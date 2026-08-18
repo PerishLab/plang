@@ -54,7 +54,8 @@ implements a fixed-capacity byte channel whose receive result distinguishes
 pending, value, closed, and failed states. See `CHANNEL.md` for the executable
 ABI and the semantics intentionally deferred to later stages.
 
-`seed/await.pir` then adds a preallocated FIFO scheduler, channel waiter queue,
+`seed/await.pir` then adds a preallocated FIFO scheduler, separate channel reader
+and writer waiter queues,
 and explicit task continuation. It demonstrates a consumer suspending without
 polling, being woken by a producer, yielding between values, and observing the
 terminal state after drain. See `AWAIT.md` for the lowering contract.

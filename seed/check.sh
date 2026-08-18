@@ -37,7 +37,7 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
-test "$(wc -l < "$work/await.atoms.tokens")" -eq 2531
+test "$(wc -l < "$work/await.atoms.tokens")" -eq 3015
 $work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.s" -o "$work/await"
 
@@ -77,12 +77,12 @@ test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-runtime-over
 right"
 
 set +e
-error=$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms-aux-overflow.manifest" 2>&1)
+error=$($work/meta 3< "$root/seed/affine-exact.tokens" < "$root/seed/atoms-aux-overflow.manifest" 2>&1)
 status=$?
 set -e
 test "$status" = 1
 test "$error" = "plang0: atom manifest rejected"
-test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms-affine-exact.manifest")" = "async"
+test "$($work/meta 3< "$root/seed/affine-exact.tokens" < "$root/seed/atoms-affine-exact.manifest")" = "async"
 
 set +e
 error=$($work/meta 3< "$root/seed/affine-incomplete.tokens" < "$root/seed/atoms-affine-exact.manifest" 2>&1)
@@ -150,7 +150,7 @@ $work/lex "$root/seed/hello.pir" > "$work/send-identity.tokens"
 $work/send < "$work/send-identity.tokens" > "$work/send-identity.out"
 cmp "$work/send-identity.tokens" "$work/send-identity.out"
 $work/send < "$work/await.source.tokens" > "$work/send-once.tokens"
-test "$(wc -l < "$work/send-once.tokens")" -eq 2220
+test "$(wc -l < "$work/send-once.tokens")" -eq 2663
 $work/send < "$work/send-once.tokens" > "$work/send-twice.tokens"
 cmp "$work/send-once.tokens" "$work/send-twice.tokens"
 $work/send < "$work/await.source.tokens" | $work/async > "$work/send-async.tokens"

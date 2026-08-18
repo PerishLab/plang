@@ -42,5 +42,6 @@ terminal transition changes the channel. Neither requires changing this state
 machine. Multi-producer safety, cancellation propagation, typed elements, and
 error payloads remain outside this first contract.
 
-`AWAIT.md` extends this state machine with fixed-capacity waiter and runnable
-queues and demonstrates the first non-polling default-await lowering target.
+`AWAIT.md` extends this state machine with separate fixed-capacity reader and
+writer waiter queues plus a runnable queue. It demonstrates non-polling receive
+and send backpressure while keeping terminal states explicit.

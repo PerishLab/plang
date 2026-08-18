@@ -5,7 +5,7 @@ adds three fixed-capacity objects to the bounded channel state machine:
 
 ```text
 scheduler = runnable task FIFO
-channel   = value FIFO + reader waiter FIFO + terminal state
+channel   = value FIFO + reader waiter FIFO + writer waiter FIFO + terminal state
 task      = resume func + program counter + scheduler + channel + target + done
 ```
 
@@ -20,6 +20,14 @@ one reader. Closing or failing a channel wakes every reader that fits in the
 preallocated runnable queue. A wake that encounters a full runnable queue leaves
 the waiter registered so the transition can be retried without losing a task.
 
+The symmetric writer path is now executable as a hand-lowered baseline. A send
+that observes a full channel records its current program counter, enters the
+fixed-capacity writer FIFO, and returns to the scheduler. Each receive that frees
+a slot wakes exactly one writer; close and fail wake all writers so they can
+observe terminal rejection. The canonical fixture deliberately uses a one-byte
+channel, forcing the `A/B/C` producer to suspend and retry without polling or
+allocating after construction.
+
 The fixture starts the consumer before the producer. Its observable sequence is:
 
 ```text
@@ -30,8 +38,9 @@ consumer -> A/yield -> B/yield -> C/yield -> closed/done
 
 The output is `ABCawait ok`. A separate two-reader contract proves that a value
 wakes exactly one waiter while close and failure wake the remaining waiters.
-The producer's three sends use `@channel.send`, whose status remains explicit;
-see `SEND.md`.
+The producer's three sends still use `@channel.send`, whose status remains
+explicit; the surrounding wait/retry state machine is intentionally handwritten
+before it becomes an `@await.send` compiler atom. See `SEND.md`.
 
 A second scheduled consumer uses `@stream.collect` over another `ABC` channel.
 It suspends before the producer runs, wakes once, drains the finite stream into
