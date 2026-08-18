@@ -1,11 +1,11 @@
 1
-8192
+2500
 async
 @await.recv
 -
 @async
 channel+task
-channel++task
+channel+target+task
 6
 36
 0

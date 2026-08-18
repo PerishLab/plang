@@ -291,7 +291,7 @@ u64 %one 1
 u64 %unknown 255
 u64 %capacity 4096
 u64 %small 64
-u64 %record_size 416
+u64 %record_size 368
 u64 %fd 0
 alloc %buffer %capacity
 alloc %a %small
@@ -317,62 +317,74 @@ call %length nextcopy 4 %buffer %capacity %a %small
 zero %length invalid
 call %length nextcopy 4 %buffer %capacity %current %small
 zero %length invalid
-u64 %offset 320
+u64 %offset 256
 store64 %current %offset %length
 u64 %offset 64
 add %target %current %offset
 call %length nextcopy 4 %buffer %capacity %target %small
 zero %length invalid
-u64 %offset 328
-store64 %current %offset %length
-u64 %offset 128
-add %target %current %offset
-call %length nextcopy 4 %buffer %capacity %target %small
-zero %length invalid
-call %test effect_valid 2 %target %length
-zero %test invalid
-u64 %offset 336
+u64 %offset 264
 store64 %current %offset %length
 u64 %offset 192
 add %target %current %offset
 call %length nextcopy 4 %buffer %capacity %target %small
 zero %length invalid
-call %test effect_valid 2 %target %length
-zero %test invalid
-u64 %offset 344
+u64 %offset 280
 store64 %current %offset %length
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %test effect_valid 2 %a %length
+zero %test invalid
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %test effect_valid 2 %a %length
+zero %test invalid
 call %length nextcopy 4 %buffer %capacity %a %small
 zero %length invalid
 call %value expansion 2 %a %length
 zero %value invalid
-u64 %offset 360
+u64 %offset 288
 store64 %current %offset %value
 call %length nextcopy 4 %buffer %capacity %a %small
 zero %length invalid
 call %value expansion 2 %a %length
 zero %value invalid
-u64 %offset 368
+u64 %offset 296
 store64 %current %offset %value
 call %length nextcopy 4 %buffer %capacity %a %small
 zero %length invalid
 call %value emission 2 %a %length
 eq %test %value %unknown
 nonzero %test invalid
-u64 %offset 376
+u64 %offset 304
 store64 %current %offset %value
-u64 %offset 256
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value expansion 2 %a %length
+zero %value invalid
+u64 %offset 312
+store64 %current %offset %value
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value expansion 2 %a %length
+zero %value invalid
+u64 %offset 320
+store64 %current %offset %value
+u64 %offset 128
 add %target %current %offset
 call %length nextcopy 4 %buffer %capacity %target %small
 zero %length invalid
-u64 %offset 352
+u64 %offset 272
 store64 %current %offset %length
-u64 %offset 384
+u64 %offset 328
 store64 %current %offset %zero
-u64 %offset 392
+u64 %offset 336
 store64 %current %offset %unknown
-u64 %offset 400
+u64 %offset 344
 store64 %current %offset %zero
-u64 %offset 408
+u64 %offset 352
+store64 %current %offset %zero
+u64 %offset 360
 store64 %current %offset %zero
 add %index %index %one
 jump record
@@ -384,7 +396,7 @@ label unique
 eq %test %index %count
 nonzero %test edges
 call %current seat 3 %records %index %record_size
-u64 %offset 320
+u64 %offset 256
 load64 %length %current %offset
 add %other_index %index %one
 label unique_other
@@ -407,11 +419,11 @@ nonzero %test census_open
 call %current seat 3 %records %index %record_size
 u64 %offset 64
 add %target %current %offset
-u64 %offset 328
+u64 %offset 264
 load64 %length %current %offset
 data %a %small dash
 call %test same 4 %target %length %a %small
-u64 %offset 376
+u64 %offset 304
 load64 %value %current %offset
 zero %test emitted_edge
 nonzero %value invalid
@@ -424,7 +436,7 @@ label consumer
 eq %test %other_index %count
 nonzero %test consumer_done
 call %other seat 3 %records %other_index %record_size
-u64 %offset 320
+u64 %offset 256
 load64 %value %other %offset
 call %test same 4 %target %length %other %value
 zero %test consumer_next
@@ -436,10 +448,10 @@ jump consumer
 label consumer_done
 eq %test %chosen %unknown
 nonzero %test invalid
-u64 %offset 392
+u64 %offset 336
 store64 %current %offset %chosen
 call %other seat 3 %records %chosen %record_size
-u64 %offset 384
+u64 %offset 328
 load64 %value %other %offset
 add %value %value %one
 store64 %other %offset %value
@@ -462,11 +474,25 @@ label census_atom
 eq %test %index %count
 nonzero %test census
 call %current seat 3 %records %index %record_size
-u64 %offset 320
+u64 %offset 256
 load64 %value %current %offset
 call %test same 4 %buffer %length %current %value
+zero %test census_aux
+u64 %offset 352
+load64 %value %current %offset
+add %value %value %one
+store64 %current %offset %value
+label census_aux
+u64 %offset 192
+add %target %current %offset
+u64 %offset 280
+load64 %value %current %offset
+data %a %small dash
+call %test same 4 %target %value %a %small
+nonzero %test census_next
+call %test same 4 %buffer %length %target %value
 zero %test census_next
-u64 %offset 408
+u64 %offset 360
 load64 %value %current %offset
 add %value %value %one
 store64 %current %offset %value
@@ -489,10 +515,10 @@ label candidate
 eq %test %index %count
 nonzero %test candidate_done
 call %current seat 3 %records %index %record_size
-u64 %offset 400
+u64 %offset 344
 load64 %value %current %offset
 nonzero %value candidate_next
-u64 %offset 384
+u64 %offset 328
 load64 %value %current %offset
 nonzero %value candidate_next
 u64 %chosen 0
@@ -512,17 +538,33 @@ le %test %value %work_budget
 zero %test invalid
 u64 %work 0
 add %work %work %value
-u64 %offset 408
+u64 %offset 352
 load64 %markers %current %offset
-u64 %offset 360
+u64 %offset 288
 load64 %value %current %offset
 mul %other_index %markers %value
 le %test %other_index %current_bound
 zero %test invalid
 sub %value %current_bound %other_index
-u64 %offset 368
+u64 %offset 296
 load64 %length %current %offset
 mul %other_index %markers %length
+add %length %value %other_index
+le %test %value %length
+zero %test invalid
+u64 %value 0
+add %value %value %length
+u64 %offset 360
+load64 %index %current %offset
+u64 %offset 312
+load64 %length %current %offset
+mul %other_index %index %length
+le %test %other_index %value
+zero %test invalid
+sub %value %value %other_index
+u64 %offset 320
+load64 %length %current %offset
+mul %other_index %index %length
 add %length %value %other_index
 le %test %value %length
 zero %test invalid
@@ -532,28 +574,28 @@ le %test %value %work_budget
 zero %test invalid
 u64 %current_bound 0
 add %current_bound %current_bound %value
-u64 %offset 256
+u64 %offset 128
 add %target %current %offset
-u64 %offset 352
+u64 %offset 272
 load64 %length %current %offset
 call %value emit 2 %target %length
 zero %value invalid
-u64 %offset 400
+u64 %offset 344
 store64 %current %offset %one
-u64 %offset 392
+u64 %offset 336
 load64 %value %current %offset
 eq %test %value %unknown
 nonzero %test selected
 call %other seat 3 %records %value %record_size
-u64 %offset 408
+u64 %offset 352
 load64 %length %other %offset
-u64 %offset 376
+u64 %offset 304
 load64 %other_index %current %offset
 mul %other_index %markers %other_index
 add %length %length %other_index
-u64 %offset 408
+u64 %offset 352
 store64 %other %offset %length
-u64 %offset 384
+u64 %offset 328
 load64 %length %other %offset
 zero %length invalid
 sub %length %length %one

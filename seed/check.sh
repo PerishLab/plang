@@ -37,6 +37,7 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
+test "$(wc -l < "$work/await.atoms.tokens")" -eq 2531
 $work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.s" -o "$work/await"
 
@@ -74,6 +75,13 @@ async"
 test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-pure.manifest")" = "pure"
 test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-runtime-overlap.manifest")" = "left
 right"
+
+set +e
+error=$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms-aux-overflow.manifest" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: atom manifest rejected"
 
 for manifest in "$root"/seed/atoms-invalid-*.manifest; do
     set +e
