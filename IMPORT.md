@@ -14,16 +14,25 @@ The third necessarily touches the host path namespace before the semantic pass
 pipeline. Mixing it into a semantic atom would make pass output depend on
 ambient filesystem state and would break marker-local algebra.
 
-`seed/compose-main.pir` and `seed/compose-library.pir` are the current executable
-lower bound. The Python-free bootstrap lexes them independently, concatenates
-their token streams in declared order, then lowers, emits, links, and runs the
-single resulting unit. The library has neither `memory` nor `main`; its ordinary
-arity-qualified function symbol satisfies the main source's forward call.
+`seed/compose.sh` is the first Python-free source composer. Its manifest starts
+with `budget 1..65535`, followed by one to 32 `source PATH` entries. Paths are
+relative to the manifest, use a canonical spelling without absolute or dot
+segments, cannot repeat, and are lexed in declared order. The first source owns
+exactly one `memory` and `main`; later sources own neither. The aggregate token
+count is checked after each source and before any semantic pass is launched.
+Output is moved into place only after the complete manifest succeeds.
+
+`seed/compose-main.pir` and `seed/compose-library.pir` are its executable lower
+bound. Their independently lexed streams form one unit; marker census sees the
+library's `@channel.send`, launches only the send pass, then the planned unit
+lowers, emits, links, and runs. The library's ordinary arity-qualified function
+symbols satisfy the main source's forward calls. Duplicate source, aggregate
+overflow, and a second resource/main root have stable fixtures; each rejection
+preserves the previous output.
 
 This proves no module runtime or new PIR opcode is required for basic source
 composition. It does not yet define namespaces, visibility, cyclic source
 graphs, initialization, resource-profile ownership, or a source syntax. Those
-features should be introduced only by a fixture that needs them. A future
-source composer must preserve declared order, reject an unbounded aggregate
-before launching semantic passes, and present one deterministic token stream to
-the existing marker census.
+features should be introduced only by a fixture that needs them. The composer
+presents one deterministic bounded token stream to the existing marker census;
+the later semantic expansion/work budget remains independently enforced there.

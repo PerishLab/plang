@@ -27,13 +27,33 @@ test "$("$work/out/await")" = "ABCawait ok
 ABCcollect ok"
 test "$("$work/out/utf8-stream")" = "utf8 stream ok"
 
-"$work/out/lex" "$root/seed/compose-main.pir" > "$work/compose.tokens"
-"$work/out/lex" "$root/seed/compose-library.pir" >> "$work/compose.tokens"
-"$work/out/lower" < "$work/compose.tokens" |
+"$root/seed/compose.sh" "$work/out/lex" "$root/seed/compose.manifest" \
+    "$work/compose.tokens"
+"$work/out/lex" "$root/seed/compose-main.pir" > "$work/compose.expected"
+"$work/out/lex" "$root/seed/compose-library.pir" >> "$work/compose.expected"
+cmp "$work/compose.expected" "$work/compose.tokens"
+test "$("$work/out/meta" 3< "$work/compose.tokens" < \
+    "$root/seed/atoms.manifest")" = send
+"$root/seed/run-atoms.sh" "$work/out/meta" "$root/seed/atoms.manifest" \
+    "$work/out" "$work/compose.tokens" "$work/compose.planned"
+"$work/out/lower" < "$work/compose.planned" |
     "$work/out/emit" > "$work/compose.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" \
     "$work/compose.s" -o "$work/compose"
 "$work/compose"
+
+for manifest in compose-invalid-budget compose-invalid-duplicate \
+    compose-invalid-root; do
+    printf '%s\n' sentinel > "$work/rejected.tokens"
+    set +e
+    error=$("$root/seed/compose.sh" "$work/out/lex" \
+        "$root/seed/$manifest.manifest" "$work/rejected.tokens" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    test "$error" = "plang0: source manifest rejected"
+    test "$(cat "$work/rejected.tokens")" = sentinel
+done
 
 for fixture in utf8-helper-collision utf8-helper-missing-channel; do
     "$work/out/lex" "$root/seed/$fixture.pir" |
