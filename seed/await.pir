@@ -146,195 +146,135 @@ label failed
 ret %zero
 end
 
+func waiter_push 3
+arg %channel 0
+arg %base 1
+arg %task 2
+u64 %zero 0
+u64 %one 1
+u64 %eight 8
+u64 %twenty_four 24
+u64 %thirty_two 32
+load64 %waiters %channel %base
+add %field %base %eight
+load64 %capacity %channel %field
+add %field %base %twenty_four
+load64 %write %channel %field
+add %count_at %base %thirty_two
+load64 %count %channel %count_at
+eq %test %count %capacity
+nonzero %test full
+mul %offset %write %eight
+store64 %waiters %offset %task
+add %write %write %one
+eq %test %write %capacity
+zero %test store
+u64 %write 0
+label store
+add %count %count %one
+add %field %base %twenty_four
+store64 %channel %field %write
+store64 %channel %count_at %count
+ret %one
+label full
+ret %zero
+end
+
+func waiter_wake_one 2
+arg %channel 0
+arg %base 1
+u64 %zero 0
+u64 %one 1
+u64 %eight 8
+u64 %sixteen 16
+u64 %thirty_two 32
+u64 %task_scheduler_at 16
+add %count_at %base %thirty_two
+load64 %count %channel %count_at
+zero %count empty
+load64 %waiters %channel %base
+add %read_at %base %sixteen
+load64 %read %channel %read_at
+mul %offset %read %eight
+load64 %task %waiters %offset
+load64 %scheduler %task %task_scheduler_at
+call %test scheduler_enqueue 2 %scheduler %task
+zero %test full
+add %field %base %eight
+load64 %capacity %channel %field
+add %read %read %one
+eq %test %read %capacity
+zero %test store
+u64 %read 0
+label store
+sub %count %count %one
+store64 %channel %read_at %read
+store64 %channel %count_at %count
+ret %one
+label empty
+ret %one
+label full
+ret %zero
+end
+
+func waiter_wake_all 2
+arg %channel 0
+arg %base 1
+u64 %zero 0
+u64 %one 1
+u64 %thirty_two 32
+add %count_at %base %thirty_two
+label waiter
+load64 %count %channel %count_at
+zero %count done
+call %test waiter_wake_one 2 %channel %base
+zero %test full
+jump waiter
+label done
+ret %one
+label full
+ret %zero
+end
+
 func channel_write_wait 2
 arg %channel 0
 arg %task 1
-u64 %zero 0
-u64 %one 1
-u64 %scale 8
 u64 %task_scheduler_at 16
 u64 %capacity_at 8
 u64 %count_at 32
 u64 %state_at 40
 u64 %waiters_at 88
-u64 %wait_capacity_at 96
-u64 %wait_write_at 112
-u64 %wait_count_at 120
 load64 %state %channel %state_at
 nonzero %state ready
 load64 %capacity %channel %capacity_at
 load64 %count %channel %count_at
 eq %test %count %capacity
 zero %test ready
-load64 %wait_capacity %channel %wait_capacity_at
-load64 %wait_count %channel %wait_count_at
-eq %test %wait_count %wait_capacity
-nonzero %test full
-load64 %waiters %channel %waiters_at
-load64 %wait_write %channel %wait_write_at
-mul %offset %wait_write %scale
-store64 %waiters %offset %task
-add %wait_write %wait_write %one
-eq %test %wait_write %wait_capacity
-zero %test store
-u64 %wait_write 0
-label store
-add %wait_count %wait_count %one
-store64 %channel %wait_write_at %wait_write
-store64 %channel %wait_count_at %wait_count
-ret %one
+call %test waiter_push 3 %channel %waiters_at %task
+ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
 call %test scheduler_enqueue 2 %scheduler %task
 ret %test
-label full
-ret %zero
 end
 
 func channel_wait 2
 arg %channel 0
 arg %task 1
-u64 %zero 0
-u64 %one 1
-u64 %scale 8
 u64 %task_scheduler_at 16
 u64 %count_at 32
 u64 %state_at 40
 u64 %waiters_at 48
-u64 %wait_capacity_at 56
-u64 %wait_write_at 72
-u64 %wait_count_at 80
 load64 %count %channel %count_at
 nonzero %count ready
 load64 %state %channel %state_at
 nonzero %state ready
-load64 %wait_capacity %channel %wait_capacity_at
-load64 %wait_count %channel %wait_count_at
-eq %test %wait_count %wait_capacity
-nonzero %test full
-load64 %waiters %channel %waiters_at
-load64 %wait_write %channel %wait_write_at
-mul %offset %wait_write %scale
-store64 %waiters %offset %task
-add %wait_write %wait_write %one
-eq %test %wait_write %wait_capacity
-zero %test store
-u64 %wait_write 0
-label store
-add %wait_count %wait_count %one
-store64 %channel %wait_write_at %wait_write
-store64 %channel %wait_count_at %wait_count
-ret %one
+call %test waiter_push 3 %channel %waiters_at %task
+ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
 call %test scheduler_enqueue 2 %scheduler %task
 ret %test
-label full
-ret %zero
-end
-
-func channel_wake_one 1
-arg %channel 0
-u64 %zero 0
-u64 %one 1
-u64 %scale 8
-u64 %task_scheduler_at 16
-u64 %waiters_at 48
-u64 %wait_capacity_at 56
-u64 %wait_read_at 64
-u64 %wait_count_at 80
-load64 %wait_count %channel %wait_count_at
-zero %wait_count empty
-load64 %waiters %channel %waiters_at
-load64 %wait_read %channel %wait_read_at
-mul %offset %wait_read %scale
-load64 %task %waiters %offset
-load64 %scheduler %task %task_scheduler_at
-call %test scheduler_enqueue 2 %scheduler %task
-zero %test full
-load64 %wait_capacity %channel %wait_capacity_at
-add %wait_read %wait_read %one
-eq %test %wait_read %wait_capacity
-zero %test store
-u64 %wait_read 0
-label store
-sub %wait_count %wait_count %one
-store64 %channel %wait_read_at %wait_read
-store64 %channel %wait_count_at %wait_count
-ret %one
-label empty
-ret %one
-label full
-ret %zero
-end
-
-func channel_wake_all 1
-arg %channel 0
-u64 %zero 0
-u64 %one 1
-u64 %wait_count_at 80
-label waiter
-load64 %count %channel %wait_count_at
-zero %count done
-call %test channel_wake_one 1 %channel
-zero %test full
-jump waiter
-label done
-ret %one
-label full
-ret %zero
-end
-
-func channel_wake_writer_one 1
-arg %channel 0
-u64 %zero 0
-u64 %one 1
-u64 %scale 8
-u64 %task_scheduler_at 16
-u64 %waiters_at 88
-u64 %wait_capacity_at 96
-u64 %wait_read_at 104
-u64 %wait_count_at 120
-load64 %wait_count %channel %wait_count_at
-zero %wait_count empty
-load64 %waiters %channel %waiters_at
-load64 %wait_read %channel %wait_read_at
-mul %offset %wait_read %scale
-load64 %task %waiters %offset
-load64 %scheduler %task %task_scheduler_at
-call %test scheduler_enqueue 2 %scheduler %task
-zero %test full
-load64 %wait_capacity %channel %wait_capacity_at
-add %wait_read %wait_read %one
-eq %test %wait_read %wait_capacity
-zero %test store
-u64 %wait_read 0
-label store
-sub %wait_count %wait_count %one
-store64 %channel %wait_read_at %wait_read
-store64 %channel %wait_count_at %wait_count
-ret %one
-label empty
-ret %one
-label full
-ret %zero
-end
-
-func channel_wake_writer_all 1
-arg %channel 0
-u64 %zero 0
-u64 %one 1
-u64 %wait_count_at 120
-label waiter
-load64 %count %channel %wait_count_at
-zero %count done
-call %test channel_wake_writer_one 1 %channel
-zero %test full
-jump waiter
-label done
-ret %one
-label full
-ret %zero
 end
 
 func channel_send 2
@@ -348,6 +288,7 @@ u64 %capacity_at 8
 u64 %write_at 24
 u64 %count_at 32
 u64 %state_at 40
+u64 %waiters_at 48
 load64 %state %channel %state_at
 nonzero %state rejected
 load64 %capacity %channel %capacity_at
@@ -365,7 +306,7 @@ label store
 add %count %count %one
 store64 %channel %write_at %write
 store64 %channel %count_at %count
-call %test channel_wake_one 1 %channel
+call %test waiter_wake_one 2 %channel %waiters_at
 ret %one
 label rejected
 ret %closed
@@ -387,6 +328,7 @@ u64 %capacity_at 8
 u64 %read_at 16
 u64 %count_at 32
 u64 %state_at 40
+u64 %waiters_at 88
 load64 %count %channel %count_at
 zero %count empty
 load64 %buffer %channel %buffer_at
@@ -402,7 +344,7 @@ label store
 sub %count %count %one
 store64 %channel %read_at %read
 store64 %channel %count_at %count
-call %test channel_wake_writer_one 1 %channel
+call %test waiter_wake_one 2 %channel %waiters_at
 ret %value_status
 label empty
 load64 %state %channel %state_at
@@ -422,15 +364,17 @@ u64 %zero 0
 u64 %one 1
 u64 %failed 2
 u64 %state_at 40
+u64 %reader_waiters_at 48
+u64 %writer_waiters_at 88
 load64 %state %channel %state_at
 eq %test %state %failed
 nonzero %test no
 nonzero %state wake
 store64 %channel %state_at %one
 label wake
-call %test channel_wake_all 1 %channel
+call %test waiter_wake_all 2 %channel %reader_waiters_at
 zero %test no
-call %test channel_wake_writer_all 1 %channel
+call %test waiter_wake_all 2 %channel %writer_waiters_at
 ret %test
 label no
 ret %zero
@@ -442,15 +386,17 @@ u64 %zero 0
 u64 %one 1
 u64 %failed 2
 u64 %state_at 40
+u64 %reader_waiters_at 48
+u64 %writer_waiters_at 88
 load64 %state %channel %state_at
 eq %test %state %one
 nonzero %test no
 nonzero %state wake
 store64 %channel %state_at %failed
 label wake
-call %test channel_wake_all 1 %channel
+call %test waiter_wake_all 2 %channel %reader_waiters_at
 zero %test no
-call %test channel_wake_writer_all 1 %channel
+call %test waiter_wake_all 2 %channel %writer_waiters_at
 ret %test
 label no
 ret %zero
