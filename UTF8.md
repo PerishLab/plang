@@ -17,6 +17,14 @@ U+1F600. It also rejects a surrogate, a value above U+10FFFF, and a four-byte
 write into three bytes of remaining capacity through the Python, self-hosted,
 and fixed compiler generations.
 
+`seed/utf8-decode.pir` proves the incremental inverse without hiding a stream
+buffer. Its caller-owned 32-byte state is `{remaining, scalar, minimum, value}`;
+each feed consumes exactly one byte and returns the existing channel-shaped
+status `0=pending`, `1=value`, or `3=failed`. A terminal maps to `2=closed` only
+when no partial scalar remains; truncated close and upstream failure map to
+failed. Invalid continuation, overlong forms, surrogates, values above
+U+10FFFF, and invalid leading bytes reset the partial sequence explicitly.
+
 Static `bytes` declarations are transport, not Unicode syntax. A raw UTF-8
 literal such as `"λ你好😀"` reaches the assembler as the same source bytes;
 neither lower nor emit interprets code points. JSON `\uXXXX` decoding,

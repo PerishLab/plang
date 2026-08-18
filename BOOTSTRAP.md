@@ -32,7 +32,9 @@ calls, and eight-argument indirect invokes through the same three generations.
 invalid-scalar and capacity statuses, and transactional committed length using
 only existing PIR1 operations. `utf8-literal.pir` separately proves that raw
 UTF-8 static bytes cross Python, self-hosted, and fixed compilers without the
-emitter understanding characters. See `UTF8.md`.
+emitter understanding characters. `utf8-decode.pir` adds a one-byte-at-a-time,
+caller-owned incremental decoder whose pending/value/closed/failed statuses
+align with channels. See `UTF8.md`.
 The lowerer rejects function declarations wider than eight. Argument indices
 are checked against a per-function assembler constant, keeping that local
 validation outside runtime code and avoiding mutable cross-helper compiler
