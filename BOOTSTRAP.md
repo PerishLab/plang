@@ -58,6 +58,12 @@ build/hello
 The exhaustion fixture must print `plang: memory limit` to standard error and
 exit with status one.
 
+The self-hosted emitter enforces the memory profile with one assembler-time
+constant expression. Missing or duplicate memory/main forms are covered by the
+platform ABI's required symbols and must fail before execution. The validation
+fixtures exercise the same boundary through the Python, self-hosted, and fixed
+generations.
+
 Run the runtime, scanner, lexer, decoder, generated-compiler, and fixed-point
 contracts in a disposable build directory with:
 

@@ -28,6 +28,12 @@ comes from one checked bump arena, and arena exhaustion returns zero without
 allocating. Static bytes, code, stack, and platform loader memory are still
 outside that arena in this stage.
 
+The emitter binds each `memory` operand to an assembler constant and checks the
+4 KiB..16 MiB power-of-two profile before reserving the arena. Missing or
+duplicate memory declarations and missing or duplicate `main` definitions are
+rejected by their required `_plang_memory_limit` and `_main` ABI symbols during
+assembly or linking; the closure does not duplicate those symbol tables.
+
 Every instruction is locally framed by its opcode. Variable-arity calls carry
 their arity explicitly as `call destination function arity arguments...`, so a
 consumer of the token stream never needs source line boundaries or a global

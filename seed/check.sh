@@ -279,7 +279,7 @@ error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-ar
 status=$?
 set -e
 test "$status" = 1
-echo "$error" | grep -q "error: plang0: argument index outside arity"
+echo "$error" | grep -q "error: plang0: arg index"
 
 $work/lex "$root/seed/invalid-call-arity.pir" | $work/lower | $work/emit > "$work/invalid-call-arity.self.s"
 set +e
@@ -288,6 +288,42 @@ status=$?
 set -e
 test "$status" = 1
 echo "$error" | grep -q "_pir_one__arity_0"
+
+for source in "$root"/seed/invalid-memory-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    $work/lex "$source" | $work/lower | $work/emit > "$work/$name.self.s"
+    set +e
+    error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/$name.self.s" -o "$work/$name.self" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    echo "$error" | grep -q "error: plang0: memory"
+done
+
+for source in "$root"/seed/invalid-top-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    case "$name" in
+        invalid-top-main-*) symbol=_main ;;
+        invalid-top-memory-*) symbol=_plang_memory_limit ;;
+    esac
+    $work/lex "$source" | $work/lower | $work/emit > "$work/$name.self.s"
+    set +e
+    error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/$name.self.s" -o "$work/$name.self" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    echo "$error" | grep -q "$symbol"
+done
+
+for source in "$root"/seed/invalid-top-*.pir; do
+    set +e
+    python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
+    status=$?
+    set -e
+    test "$status" = 1
+done
 
 $work/lex "$root/seed/scan.pir" | $work/lower | $work/emit > "$work/scan.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.self.s" -o "$work/scan.self"
@@ -330,6 +366,15 @@ python3 "$root/seed/boot.py" "$root/seed/invalid-call-arity.pir" "$work/invalid.
 status=$?
 set -e
 test "$status" = 1
+
+for source in "$root"/seed/invalid-memory-*.pir; do
+    set +e
+    python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
+    status=$?
+    set -e
+    test "$status" = 1
+done
+
 
 set +e
 $work/lex "$root/seed/invalid-func-arity.pir" | $work/lower > "$work/invalid.semantic.tokens" 2> "$work/invalid.semantic.error"
@@ -406,7 +451,7 @@ error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-ar
 status=$?
 set -e
 test "$status" = 1
-echo "$error" | grep -q "error: plang0: argument index outside arity"
+echo "$error" | grep -q "error: plang0: arg index"
 
 $work/lex "$root/seed/invalid-call-arity.pir" | $work/lower.self | $work/emit.self > "$work/invalid-call-arity.fixed.s"
 cmp "$work/invalid-call-arity.self.s" "$work/invalid-call-arity.fixed.s"
@@ -416,6 +461,36 @@ status=$?
 set -e
 test "$status" = 1
 echo "$error" | grep -q "_pir_one__arity_0"
+
+for source in "$root"/seed/invalid-memory-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    $work/lex "$source" | $work/lower.self | $work/emit.self > "$work/$name.fixed.s"
+    cmp "$work/$name.self.s" "$work/$name.fixed.s"
+    set +e
+    error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/$name.fixed.s" -o "$work/$name.fixed" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    echo "$error" | grep -q "error: plang0: memory"
+done
+
+for source in "$root"/seed/invalid-top-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    case "$name" in
+        invalid-top-main-*) symbol=_main ;;
+        invalid-top-memory-*) symbol=_plang_memory_limit ;;
+    esac
+    $work/lex "$source" | $work/lower.self | $work/emit.self > "$work/$name.fixed.s"
+    cmp "$work/$name.self.s" "$work/$name.fixed.s"
+    set +e
+    error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/$name.fixed.s" -o "$work/$name.fixed" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    echo "$error" | grep -q "$symbol"
+done
 
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"
