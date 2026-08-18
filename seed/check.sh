@@ -358,6 +358,13 @@ set -e
 test "$status" = 1
 echo "$error" | grep -q "error: plang0: exit"
 
+set +e
+$work/lex "$root/seed/invalid-function-fallthrough.pir" | $work/lower | $work/emit > "$work/invalid-function-fallthrough.self.s" 2> "$work/invalid-function-fallthrough.self.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid-function-fallthrough.self.error")" = "plang0: emitter rejected token stream"
+
 for source in "$root"/seed/invalid-top-*.pir; do
     set +e
     python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
@@ -374,7 +381,7 @@ for source in "$root"/seed/invalid-symbol-*.pir; do
     test "$status" = 1
 done
 
-for source in "$root"/seed/invalid-register-count.pir "$root"/seed/invalid-u64-negative.pir "$root"/seed/invalid-u64-overflow.pir "$root"/seed/invalid-exit-status.pir; do
+for source in "$root"/seed/invalid-register-count.pir "$root"/seed/invalid-u64-negative.pir "$root"/seed/invalid-u64-overflow.pir "$root"/seed/invalid-exit-status.pir "$root"/seed/invalid-function-fallthrough.pir; do
     set +e
     python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
     status=$?
@@ -606,6 +613,13 @@ status=$?
 set -e
 test "$status" = 1
 echo "$error" | grep -q "error: plang0: exit"
+
+set +e
+$work/lex "$root/seed/invalid-function-fallthrough.pir" | $work/lower.self | $work/emit.self > "$work/invalid-function-fallthrough.fixed.s" 2> "$work/invalid-function-fallthrough.fixed.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid-function-fallthrough.fixed.error")" = "plang0: emitter rejected token stream"
 
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"

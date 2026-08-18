@@ -48,8 +48,10 @@ IR, syntax, types, and macros from inside the closure.
 
 Operand validation remains layered and bounded: lower rejects a thirty-first
 virtual register, emit rejects negative u64 syntax, assembler binding rejects
-values outside u64, and literal process exits must fit 0..255. None of these
-checks enlarges a generated program's runtime state.
+values outside u64, literal process exits must fit 0..255, and emit requires the
+last instruction before each `end` to be `exit` or `ret`. The terminal check is
+one bit of compiler state and does not attempt whole-function control-flow
+proof. None of these checks enlarges a generated program's runtime state.
 
 Build the current vertical slice with:
 

@@ -317,6 +317,7 @@ call %wrote put 2 %piece %piecesize
 label function_tail
 data %piece %piecesize prologue
 call %wrote put 2 %piece %piecesize
+u64 %terminal 0
 data %table %tablesize body
 label body
 data %table %tablesize body
@@ -325,6 +326,10 @@ zero %length invalid
 call %code lookup 4 %op %length %table %tablesize
 eq %test %code %unknown
 nonzero %test invalid
+u64 %value 69
+eq %test %code %value
+nonzero %test finish
+u64 %terminal 0
 u64 %value 65
 eq %test %code %value
 nonzero %test arg
@@ -391,9 +396,6 @@ nonzero %test exit
 u64 %value 84
 eq %test %code %value
 nonzero %test return_op
-u64 %value 69
-eq %test %code %value
-nonzero %test finish
 jump invalid
 label arg
 call %alen next 3 %fd %a %capacity
@@ -956,6 +958,7 @@ data %piece %piecesize exitb
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize epilogue
 call %wrote put 2 %piece %piecesize
+u64 %terminal 1
 jump body
 label return_op
 call %alen next 3 %fd %a %capacity
@@ -966,8 +969,10 @@ data %piece %piecesize close
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize epilogue
 call %wrote put 2 %piece %piecesize
+u64 %terminal 1
 jump body
 label finish
+zero %terminal invalid
 jump top
 label success
 exit 0

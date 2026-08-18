@@ -90,6 +90,10 @@ targets that alias, so unknown functions and declared/call-site arity mismatch
 remain forward-reference friendly but fail as unresolved symbols at link time.
 Dynamic `invoke` cannot use this static proof and remains a trusted code-pointer
 operation.
+The emitter also tracks whether the most recently emitted instruction is
+`exit` or `ret`; `end` rejects any function that could fall through its fixed
+frame. This is one bounded bit of current-function state, not a control-flow
+graph: branches remain the trusted PIR author's responsibility.
 
 `seed/async.pir` is the first self-hosted semantic-atom pass in front of that
 pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers
