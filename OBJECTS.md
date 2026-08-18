@@ -25,3 +25,7 @@ that separately. Object and method lifetimes likewise remain explicit: the
 caller owns the context storage, and borrowed method descriptors cannot extend
 it. Surface syntax and static method signatures can lower to these rules after
 their first real use case is known.
+
+`BORROW.md` selects the first suspension boundary: mutable borrows remain inside
+one uninterrupted continuation segment; snapshots, ownership transfer, and
+serialized capabilities are the explicit cross-boundary forms.
