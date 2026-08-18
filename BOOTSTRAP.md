@@ -23,6 +23,10 @@ and runs `hello.pir` plus the native arithmetic/bitwise fixture. Python remains
 as a readable oracle and test fixture, but
 is no longer required to reproduce this compiler stage once the pair exists.
 
+The canonical opcode manifest must exactly match the vocabularies embedded in
+lower, decode, and emit. `scan.pir` exercises unsigned `lt`, `argv`, `open`, and
+`close` through the Python, self-hosted, and fixed-point generations.
+
 `lower.pir` assigns named registers to explicit frame slots and scopes labels by
 function while retaining only one function's small symbol map. `emit.pir`
 consumes that normalized token stream. The fixed-point emitter remains bounded:

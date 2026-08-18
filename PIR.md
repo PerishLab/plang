@@ -65,6 +65,11 @@ arm64 Darwin assembly. The Python seed compiles both members once; the resulting
 pair compiles both sources again, and the next generation is byte-identical.
 The rebuilt pair also compiles `hello.pir` successfully.
 
+`seed/check-opcodes.sh` extracts the instruction vocabulary embedded in lower,
+decode, and emit and requires exact equality. `seed/bitwise.pir` and
+`seed/scan.pir` then exercise arithmetic/bitwise and `lt/argv/open/close`
+semantics through the Python, self-hosted, and fixed-point generations.
+
 `seed/async.pir` is the first self-hosted semantic-atom pass in front of that
 pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers
 without retaining an AST, and is itself rebuilt to a byte-identical fixed

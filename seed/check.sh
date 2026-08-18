@@ -5,6 +5,8 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
+sh "$root/seed/check-opcodes.sh"
+
 python3 "$root/seed/boot.py" "$root/seed/hello.pir" "$work/hello.s"
 python3 "$root/seed/boot.py" "$root/seed/profile.pir" "$work/profile.s"
 python3 "$root/seed/boot.py" "$root/seed/exhaust.pir" "$work/exhaust.s"
@@ -250,6 +252,10 @@ $work/lex "$root/seed/bitwise.pir" | $work/lower | $work/emit > "$work/bitwise.s
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.self.s" -o "$work/bitwise.self"
 test "$($work/bitwise.self)" = "bitwise ok"
 
+$work/lex "$root/seed/scan.pir" | $work/lower | $work/emit > "$work/scan.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.self.s" -o "$work/scan.self"
+test "$($work/scan.self "$root/seed/hello.pir")" = "scan ok"
+
 set +e
 error=$($work/lower < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.lower.tokens")
 status=$?
@@ -307,6 +313,10 @@ test "$($work/hello.fixed)" = "hello, plang"
 $work/lex "$root/seed/bitwise.pir" | $work/lower.self | $work/emit.self > "$work/bitwise.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.fixed.s" -o "$work/bitwise.fixed"
 test "$($work/bitwise.fixed)" = "bitwise ok"
+
+$work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"
+test "$($work/scan.fixed "$root/seed/hello.pir")" = "scan ok"
 
 $work/lex "$root/seed/profile.pir" | $work/lower.self | $work/emit.self > "$work/profile.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.fixed.s" -o "$work/profile.fixed"

@@ -1,6 +1,6 @@
 memory 32768
 bytes top "memory M\nbytes B\nfunc F\n"
-bytes body "arg A\nu64 U\ndata D\nfuncptr F\nadd B\nsub B\nmul B\nand B\nor B\nxor B\nshl B\nshr B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\ninvoke Y\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
+bytes body "arg A\nu64 U\ndata D\nfuncptr F\nadd B\nsub B\nmul B\nand B\nor B\nxor B\nshl B\nshr B\neq P\nne P\nlt P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nargv R\nread I\nwrite I\nopen N\nclose N\ncall K\ninvoke Y\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
 bytes constsec ".section __TEXT,__const\n"
 bytes memorya ".section __DATA,__data\n.p2align 3\n.globl _plang_memory_limit\n_plang_memory_limit:\n    .quad "
 bytes memoryb "\n.section __DATA,__bss\n.p2align 4\n.globl _plang_arena\n_plang_arena:\n    .space "
@@ -38,8 +38,10 @@ bytes shr11 "    lsr x11, x9, x10\n"
 bytes cmp "    cmp x9, x10\n    cset x11, "
 bytes eqcond "eq\n"
 bytes necond "ne\n"
+bytes ltcond "lo\n"
 bytes lecond "ls\n"
 bytes sltcond "lt\n"
+bytes argvload "    ldr x11, [x9, x10, lsl #3]\n"
 bytes loadbyte "    add x11, x9, x10\n    ldrb w11, [x11]\n"
 bytes loadword "    add x11, x9, x10\n    ldr x11, [x11]\n"
 bytes storebyte "    add x9, x9, x10\n    strb w11, [x9]\n"
@@ -57,6 +59,8 @@ bytes blr "    blr x9\n"
 bytes runtimea "    bl _plang_"
 bytes readcall "    bl _plang_read\n"
 bytes writecall "    bl _plang_write\n"
+bytes opencall "    bl _plang_open\n"
+bytes closecall "    bl _plang_close\n"
 bytes labela "L_"
 bytes labelb ":\n"
 bytes jumpa "    b L_"
@@ -328,9 +332,15 @@ nonzero %test store64
 u64 %value 67
 eq %test %code %value
 nonzero %test allocation
+u64 %value 82
+eq %test %code %value
+nonzero %test argv
 u64 %value 73
 eq %test %code %value
 nonzero %test io
+u64 %value 78
+eq %test %code %value
+nonzero %test unary_runtime
 u64 %value 75
 eq %test %code %value
 nonzero %test call
@@ -517,7 +527,7 @@ eq %test %byte %char
 nonzero %test compare_ne
 u64 %char 108
 eq %test %byte %char
-nonzero %test compare_le
+nonzero %test compare_l
 data %piece %piecesize sltcond
 jump compare_emit
 label compare_eq
@@ -526,8 +536,16 @@ jump compare_emit
 label compare_ne
 data %piece %piecesize necond
 jump compare_emit
+label compare_l
+load8 %byte %op %one
+u64 %char 116
+eq %test %byte %char
+nonzero %test compare_lt
 label compare_le
 data %piece %piecesize lecond
+jump compare_emit
+label compare_lt
+data %piece %piecesize ltcond
 label compare_emit
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize store11
@@ -633,6 +651,52 @@ call %wrote reg 2 %b %blen
 data %piece %piecesize close
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize alloc
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label argv
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize argvload
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label unary_runtime
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+data %piece %piecesize load0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+load8 %byte %op %zero
+u64 %char 111
+eq %test %byte %char
+nonzero %test unary_open
+data %piece %piecesize closecall
+jump unary_emit
+label unary_open
+data %piece %piecesize opencall
+label unary_emit
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store0
 call %wrote put 2 %piece %piecesize
 call %wrote reg 2 %a %alen
 data %piece %piecesize close
