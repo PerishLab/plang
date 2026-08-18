@@ -46,3 +46,8 @@ contracts in a disposable build directory with:
 ```sh
 sh seed/check.sh
 ```
+
+`seed/channel.pir` is the first program built on top of the closed pair. It
+implements a fixed-capacity byte channel whose receive result distinguishes
+pending, value, closed, and failed states. See `CHANNEL.md` for the executable
+ABI and the semantics intentionally deferred to later stages.

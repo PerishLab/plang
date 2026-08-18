@@ -1,6 +1,6 @@
 memory 16777216
 bytes top "memory M\nbytes B\nfunc F\n"
-bytes body "arg A\nu64 U\ndata D\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nstore8 H\nalloc C\nread I\nwrite I\ncall K\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
+bytes body "arg A\nu64 U\ndata D\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
 bytes constsec ".section __TEXT,__const\n"
 bytes datahead ".p2align 0\nL_data_"
 bytes datamid ":\n    .ascii "
@@ -34,7 +34,9 @@ bytes necond "ne\n"
 bytes lecond "ls\n"
 bytes sltcond "lt\n"
 bytes loadbyte "    add x11, x9, x10\n    ldrb w11, [x11]\n"
+bytes loadword "    add x11, x9, x10\n    ldr x11, [x11]\n"
 bytes storebyte "    add x9, x9, x10\n    strb w11, [x9]\n"
+bytes storeword "    add x9, x9, x10\n    str x11, [x9]\n"
 bytes dataa "    adrp x9, L_data_"
 bytes datab "@PAGE\n    add x9, x9, L_data_"
 bytes datac "@PAGEOFF\n    stur x9, [x29, #-"
@@ -290,9 +292,15 @@ nonzero %test compare
 u64 %value 76
 eq %test %code %value
 nonzero %test load8
+u64 %value 81
+eq %test %code %value
+nonzero %test load64
 u64 %value 72
 eq %test %code %value
 nonzero %test store8
+u64 %value 86
+eq %test %code %value
+nonzero %test store64
 u64 %value 67
 eq %test %code %value
 nonzero %test allocation
@@ -492,6 +500,50 @@ call %wrote reg 2 %c %length
 data %piece %piecesize close
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize storebyte
+call %wrote put 2 %piece %piecesize
+jump body
+label load64
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize loadword
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label store64
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize storeword
 call %wrote put 2 %piece %piecesize
 jump body
 label allocation
