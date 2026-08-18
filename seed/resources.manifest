@@ -1,5 +1,5 @@
 lex 4096 buffer=4096
-meta 7104 buffer=4096+operand=64+records=8x368
+meta 7424 buffer=4096+operand=64+records=8x408
 send 4288 buffer=4096+operands=3x64
 collect 4416 buffer=4096+operands=5x64
 async 4416 buffer=4096+operands=5x64

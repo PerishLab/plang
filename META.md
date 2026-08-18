@@ -18,7 +18,10 @@ INPUT_TOKENS_PER_MARKER
 OUTPUT_TOKENS_PER_MARKER
 EMITTED_MARKERS_PER_MARKER
 AUX_INPUT_TOKENS
-AUX_MAX_OUTPUT_TOKENS
+AUX_MODE_C_OR_A
+AUX_BASE
+AUX_SCALE
+AUX_OPERAND_OFFSET
 EXECUTABLE
 ... repeated ATOM_COUNT times
 ```
@@ -29,14 +32,17 @@ lowercase effect names. Token framing is canonical positive decimal no greater
 than 4095; emitted-marker multiplicity is one canonical digit from zero through
 eight. A dash emission requires multiplicity zero, and a non-dash emission
 requires a positive multiplicity. `AUX_MARKER` accounts for a structural marker
-consumed by the same pass but not participating in graph edges. `WORK_BUDGET` is
+consumed by the same pass but not participating in graph edges. Its mode is
+`c` for constant output `BASE`, or `a` for affine output
+`BASE + SCALE * canonical_decimal_operand[OFFSET]`. Constant rules require zero
+scale and offset; affine rules require both to be positive. `WORK_BUDGET` is
 1..65535.
 
 For each emitted marker, exactly one atom must consume it. Duplicate consumers,
 unresolved emissions, and cycles are rejected. A bounded Kahn sort chooses the
 first ready atom in manifest order, giving a deterministic plan. The registry
-uses at most eight 368-byte records; together with the input window and operand
-seat, fixed allocation is 7104 bytes inside the 8 KiB arena.
+uses at most eight 408-byte records; together with the input window and operand
+seat, fixed allocation is 7424 bytes inside the 8 KiB arena.
 
 The source census retains only token and marker counters. In topological order,
 the planner applies each atom's declared bounded transfer:
@@ -47,17 +53,18 @@ next tokens = current tokens
             + marker count * output framing
 
 next tokens               -= auxiliary count * auxiliary input framing
-next tokens               += auxiliary count * auxiliary max output framing
+next tokens               += sum(auxiliary constant/affine outputs)
 next emitted-marker count += marker count * emission multiplicity
 compile work               += current tokens before each pass
 ```
 
-Primary marker transfers are exact. Auxiliary output may be a declared upper
-bound when expansion depends on marker operands: `@async` uses `4 -> <=95`
-because its state-count operand ranges from one through eight. Every
-intermediate token upper bound and cumulative work must fit the explicit budget.
-No atom-specific operand knowledge is hidden in the planner, and source tokens
-are reread rather than buffered in its arena.
+Primary marker transfers are exact. During the same streaming census, an affine
+rule retains only a bounded operand countdown and accumulated output sum. For
+`@async %task 8 1`, the manifest declares `4 -> 15 + 10 * operand[3]`, yielding
+25 tokens without teaching the planner what a state is. A missing, overlapping,
+non-canonical, or out-of-range operand rejects the plan. Every intermediate
+token count and cumulative work must fit the explicit budget; source tokens are
+reread rather than buffered in the meta arena.
 
 `READS` and `WRITES` describe effects of the generated program, not mutations
 performed by compiler passes. The third atom makes the distinction executable:
@@ -91,14 +98,16 @@ send -> async                  == async -> send
 send -> collect                == collect -> send
 overlapping runtime writes     != compiler-pass conflict
 duplicate/unresolved/cycle     -> rejected
+duplicate primary/aux marker   -> rejected
 framing or emission mismatch   -> rejected
+invalid/incomplete affine rule -> rejected
 compile work/token overflow    -> rejected before pass launch
 meta.pir rebuilt output        == byte-identical fixed point
 ```
 
 For canonical `await.pir`, the census sees 2214 source tokens, three
 `@channel.send`, two `@stream.collect`, one source `@await.recv`, and three
-`@async` frames. The plan reaches 2220 tokens after send and 2378 after collect;
-the async upper bound is 2741 while its actual output is 2531. Cumulative
+`@async` frames. The exact plan reaches 2220 tokens after send, 2378 after
+collect, and 2531 after async, matching every materialized stage. Cumulative
 compiler work is 6812, below the explicit 8192 budget. Unknown source markers
 still reach ordinary PIR1 lowering and are rejected there.

@@ -10,7 +10,10 @@ channel+target+task
 36
 0
 4
-95
+a
+15
+10
+3
 async
 send
 @channel.send
@@ -22,7 +25,10 @@ channel+status
 6
 0
 1
+c
 1
+0
+0
 send
 collect
 @stream.collect
@@ -34,5 +40,8 @@ channel+collector+status+task
 85
 1
 1
+c
 1
+0
+0
 collect

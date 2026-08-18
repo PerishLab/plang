@@ -82,6 +82,14 @@ status=$?
 set -e
 test "$status" = 1
 test "$error" = "plang0: atom manifest rejected"
+test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms-affine-exact.manifest")" = "async"
+
+set +e
+error=$($work/meta 3< "$root/seed/affine-incomplete.tokens" < "$root/seed/atoms-affine-exact.manifest" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: atom manifest rejected"
 
 for manifest in "$root"/seed/atoms-invalid-*.manifest; do
     set +e
