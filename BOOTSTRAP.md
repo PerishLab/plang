@@ -32,6 +32,10 @@ The lowerer rejects function declarations wider than eight. Argument indices
 are checked against a per-function assembler constant, keeping that local
 validation outside runtime code and avoiding mutable cross-helper compiler
 state.
+Non-main functions additionally define local arity-qualified aliases used only
+by direct calls. This turns an unknown target or static signature mismatch into
+a link-time failure without retaining a whole-program signature table; indirect
+invokes remain outside that static check.
 
 `lower.pir` assigns named registers to explicit frame slots and scopes labels by
 function while retaining only one function's small symbol map. `emit.pir`

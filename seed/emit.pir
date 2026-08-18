@@ -12,6 +12,7 @@ bytes line "\n"
 bytes texthead ".section __TEXT,__text,regular,pure_instructions\n.p2align 2\n.globl "
 bytes mainname "_main"
 bytes pirname "_pir_"
+bytes aritymid "__arity_"
 bytes prologue ":\n    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n    sub sp, sp, #240\n"
 bytes arityset ".set L_pir_current_arity, "
 bytes argchecka "    .if "
@@ -296,6 +297,14 @@ data %piece %piecesize pirname
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %a %alen
 data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize pirname
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize aritymid
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize labelb
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize pirname
 call %wrote put 2 %piece %piecesize
@@ -881,6 +890,9 @@ nonzero %value invoke_emit
 data %piece %piecesize calla
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %b %blen
+data %piece %piecesize aritymid
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %c %length
 data %piece %piecesize line
 call %wrote put 2 %piece %piecesize
 jump call_store

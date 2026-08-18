@@ -17,8 +17,10 @@ loads and invokes it without knowing whether the task is a producer, consumer,
 I/O continuation, or a future compiler job. This is the smallest operational
 meaning of “func as a value” needed by the current closure.
 
-PIR1 remains trusted and unsafe: a forged function value or mismatched dynamic
-signature can fault. The future surface `func` type must carry a checked
-signature, and a closure will additionally pair code with captured state. Those
-facilities should lower to this code-pointer primitive rather than enlarging the
-platform ABI now.
+Direct PIR1 calls reference arity-qualified function aliases, so their static
+signature mismatches fail during linking. Function values deliberately erase
+that alias: a forged value or mismatched dynamic `invoke` signature can still
+fault. The future surface `func` type must carry a checked signature, and a
+closure will additionally pair code with captured state. Those facilities
+should lower to this code-pointer primitive rather than enlarging the platform
+ABI now.

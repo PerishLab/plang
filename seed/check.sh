@@ -281,6 +281,14 @@ set -e
 test "$status" = 1
 echo "$error" | grep -q "error: plang0: argument index outside arity"
 
+$work/lex "$root/seed/invalid-call-arity.pir" | $work/lower | $work/emit > "$work/invalid-call-arity.self.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-call-arity.self.s" -o "$work/invalid-call-arity.self" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "_pir_one__arity_0"
+
 $work/lex "$root/seed/scan.pir" | $work/lower | $work/emit > "$work/scan.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.self.s" -o "$work/scan.self"
 test "$($work/scan.self "$root/seed/hello.pir")" = "scan ok"
@@ -313,6 +321,12 @@ test "$status" = 1
 
 set +e
 python3 "$root/seed/boot.py" "$root/seed/invalid-arg-index.pir" "$work/invalid.py.s" >/dev/null 2>&1
+status=$?
+set -e
+test "$status" = 1
+
+set +e
+python3 "$root/seed/boot.py" "$root/seed/invalid-call-arity.pir" "$work/invalid.py.s" >/dev/null 2>&1
 status=$?
 set -e
 test "$status" = 1
@@ -393,6 +407,15 @@ status=$?
 set -e
 test "$status" = 1
 echo "$error" | grep -q "error: plang0: argument index outside arity"
+
+$work/lex "$root/seed/invalid-call-arity.pir" | $work/lower.self | $work/emit.self > "$work/invalid-call-arity.fixed.s"
+cmp "$work/invalid-call-arity.self.s" "$work/invalid-call-arity.fixed.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-call-arity.fixed.s" -o "$work/invalid-call-arity.fixed" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "_pir_one__arity_0"
 
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"

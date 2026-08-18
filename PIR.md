@@ -76,6 +76,11 @@ lowering pass. The streaming emitter publishes each current function arity as
 an assembler-time constant; every `arg` emits a conditional `.error`, so an
 index outside that function's arity fails before linking or execution without
 adding compiler-side persistent state.
+Each non-main function also defines a local arity-qualified alias. Direct `call`
+targets that alias, so unknown functions and declared/call-site arity mismatch
+remain forward-reference friendly but fail as unresolved symbols at link time.
+Dynamic `invoke` cannot use this static proof and remains a trusted code-pointer
+operation.
 
 `seed/async.pir` is the first self-hosted semantic-atom pass in front of that
 pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers
