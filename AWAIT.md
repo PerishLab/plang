@@ -14,8 +14,20 @@ wait, wake, resume, close, and fail allocate nothing. The scheduler is
 single-threaded and FIFO. Construction enforces `attached tasks <= runnable
 capacity`; a task with no scheduler remains valid for synchronous contracts.
 Attachment is lifetime-scoped and is not recycled when a task finishes. The
-trusted runtime contract also keeps each attached task in exactly one placement:
-running, runnable, one waiter FIFO, or done; generated await forms preserve it.
+task record carries an explicit placement state: detached, new, runnable,
+running, reader-wait, writer-wait, or done. Queue operations validate and commit
+those transitions only after their underlying push succeeds. Duplicate enqueue,
+waiting from a non-running task, resuming a non-runnable task, and returning
+suspended without leaving `running` are therefore explicit contract failures.
+Detached tasks remain valid for direct synchronous contracts.
+
+The encoding is chosen to make the transition law small, not to expose a
+surface ABI: `new=0`, `running=1`, `reader-wait=2`, and `writer-wait=3` are the
+only states accepted by enqueue; `runnable=4`, `done=5`, and `detached=6` are
+rejected by one bounded range check. Dequeue requires exactly `runnable` and
+changes it to `running` only when the FIFO commit occurs. An invalid queue head
+is reported to `scheduler_run` through a private sentinel and becomes scheduler
+failure rather than false idle.
 
 A resumable consumer first polls `channel_recv`. On `pending`, it registers its
 task in the channel's waiter FIFO and returns to the scheduler; it is not placed

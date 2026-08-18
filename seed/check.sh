@@ -37,7 +37,7 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
-test "$(wc -l < "$work/await.atoms.tokens")" -eq 2890
+test "$(wc -l < "$work/await.atoms.tokens")" -eq 3113
 $work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.s" -o "$work/await"
 
@@ -158,7 +158,7 @@ $work/lex "$root/seed/hello.pir" > "$work/send-identity.tokens"
 $work/send < "$work/send-identity.tokens" > "$work/send-identity.out"
 cmp "$work/send-identity.tokens" "$work/send-identity.out"
 $work/send < "$work/await.source.tokens" > "$work/send-once.tokens"
-test "$(wc -l < "$work/send-once.tokens")" -eq 2448
+test "$(wc -l < "$work/send-once.tokens")" -eq 2671
 $work/send < "$work/send-once.tokens" > "$work/send-twice.tokens"
 cmp "$work/send-once.tokens" "$work/send-twice.tokens"
 $work/send < "$work/await.source.tokens" | $work/async > "$work/send-async.tokens"

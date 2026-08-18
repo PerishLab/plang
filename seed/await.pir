@@ -36,25 +36,40 @@ func scheduler_enqueue 2
 arg %scheduler 0
 arg %task 1
 u64 %zero 0
+u64 %writer_wait 3
+u64 %runnable 4
+u64 %placement_at 56
+load64 %placement %task %placement_at
+le %test %placement %writer_wait
+zero %test full
 call %test fifo_push 3 %scheduler %zero %task
+zero %test full
+store64 %task %placement_at %runnable
 ret %test
+label full
+ret %zero
 end
 
 func scheduler_next 1
 arg %scheduler 0
 u64 %zero 0
 u64 %one 1
+u64 %runnable 4
 u64 %scale 8
 u64 %queue_at 0
 u64 %capacity_at 8
 u64 %read_at 16
 u64 %count_at 32
+u64 %placement_at 56
 load64 %count %scheduler %count_at
 zero %count empty
 load64 %queue %scheduler %queue_at
 load64 %read %scheduler %read_at
 mul %offset %read %scale
 load64 %task %queue %offset
+load64 %placement %task %placement_at
+ne %test %placement %runnable
+nonzero %test invalid
 load64 %capacity %scheduler %capacity_at
 add %read %read %one
 eq %test %read %capacity
@@ -64,9 +79,12 @@ label store
 sub %count %count %one
 store64 %scheduler %read_at %read
 store64 %scheduler %count_at %count
+store64 %task %placement_at %one
 ret %task
 label empty
 ret %zero
+label invalid
+ret %scheduler
 end
 
 func channel_new 2
@@ -216,41 +234,61 @@ end
 func channel_write_wait 2
 arg %channel 0
 arg %task 1
+u64 %running 1
+u64 %writer_wait 3
 u64 %task_scheduler_at 16
 u64 %capacity_at 8
 u64 %count_at 32
 u64 %state_at 40
 u64 %waiters_at 88
+u64 %placement_at 56
 load64 %state %channel %state_at
 nonzero %state ready
 load64 %capacity %channel %capacity_at
 load64 %count %channel %count_at
 eq %test %count %capacity
 zero %test ready
+load64 %placement %task %placement_at
+eq %test %placement %running
+zero %test failed
 call %test fifo_push 3 %channel %waiters_at %task
+zero %test failed
+store64 %task %placement_at %writer_wait
 ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
 call %test scheduler_enqueue 2 %scheduler %task
+ret %test
+label failed
 ret %test
 end
 
 func channel_wait 2
 arg %channel 0
 arg %task 1
+u64 %running 1
+u64 %reader_wait 2
 u64 %task_scheduler_at 16
 u64 %count_at 32
 u64 %state_at 40
 u64 %waiters_at 48
+u64 %placement_at 56
 load64 %count %channel %count_at
 nonzero %count ready
 load64 %state %channel %state_at
 nonzero %state ready
+load64 %placement %task %placement_at
+eq %test %placement %running
+zero %test failed
 call %test fifo_push 3 %channel %waiters_at %task
+zero %test failed
+store64 %task %placement_at %reader_wait
 ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
 call %test scheduler_enqueue 2 %scheduler %task
+ret %test
+label failed
 ret %test
 end
 
@@ -259,6 +297,7 @@ arg %channel 0
 arg %value 1
 u64 %zero 0
 u64 %one 1
+u64 %detached 6
 u64 %closed 2
 u64 %buffer_at 0
 u64 %capacity_at 8
@@ -386,7 +425,7 @@ arg %channel 2
 arg %target 3
 u64 %zero 0
 u64 %one 1
-u64 %bytes 56
+u64 %bytes 64
 u64 %resume_at 0
 u64 %pc_at 8
 u64 %scheduler_at 16
@@ -394,6 +433,7 @@ u64 %channel_at 24
 u64 %target_at 32
 u64 %done_at 40
 u64 %count_at 48
+u64 %placement_at 56
 alloc %task %bytes
 zero %task failed
 store64 %task %resume_at %resume
@@ -403,6 +443,7 @@ store64 %task %channel_at %channel
 store64 %task %target_at %target
 store64 %task %done_at %zero
 store64 %task %count_at %zero
+store64 %task %placement_at %detached
 zero %scheduler ready
 u64 %capacity_at 8
 u64 %attached_at 40
@@ -412,6 +453,7 @@ eq %test %attached %capacity
 nonzero %test failed
 add %attached %attached %one
 store64 %scheduler %attached_at %attached
+store64 %task %placement_at %zero
 label ready
 ret %task
 label failed
@@ -565,10 +607,28 @@ end
 
 func task_resume 1
 arg %task 0
+u64 %zero 0
+u64 %running 1
+u64 %done 5
+u64 %failed 3
 u64 %resume_at 0
+u64 %placement_at 56
 load64 %resume %task %resume_at
 invoke %result %resume 1 %task
+zero %result suspended
+load64 %placement %task %placement_at
+ne %test %placement %running
+nonzero %test invalid
+store64 %task %placement_at %done
 ret %result
+label suspended
+load64 %placement %task %placement_at
+ne %test %placement %running
+nonzero %test valid
+label invalid
+ret %failed
+label valid
+ret %zero
 end
 
 func scheduler_run 2
@@ -582,6 +642,8 @@ label task
 eq %test %steps %budget
 nonzero %test exhausted
 call %next scheduler_next 1 %scheduler
+eq %test %next %scheduler
+nonzero %test exhausted
 zero %next idle
 call %result task_resume 1 %next
 eq %test %result %failed
@@ -655,10 +717,17 @@ call %second task_new 4 %resume %scheduler %channel %target
 zero %second bad
 call %third task_new 4 %resume %scheduler %channel %target
 nonzero %third bad
+call %status scheduler_enqueue 2 %scheduler %first
+zero %status bad
+call %next scheduler_next 1 %scheduler
+ne %test %next %first
+nonzero %test bad
 call %status channel_wait 2 %channel %first
 zero %status bad
 call %status scheduler_enqueue 2 %scheduler %second
 zero %status bad
+call %status scheduler_enqueue 2 %scheduler %second
+nonzero %status bad
 call %status channel_send 2 %channel %value
 zero %status bad
 call %next scheduler_next 1 %scheduler
