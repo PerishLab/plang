@@ -120,3 +120,9 @@ aligned with the Python oracle through both compiler generations. The lowering
 pass is deliberately not a general symbol table or AST: it is the smallest
 stateful stream transform that restores readable names without widening the
 trusted backend.
+
+The lowerer rejects a thirty-first virtual register. The emitter rejects a
+negative u64 token before assembly; an integer wider than u64 is rejected by the
+assembler constant binding. Literal exit status is similarly bound to an
+assembler constant and must fit eight bits. These checks affect compilation
+only and add no generated runtime instructions.

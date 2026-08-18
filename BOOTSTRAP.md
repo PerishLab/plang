@@ -46,6 +46,11 @@ most the eight arm64 argument registers. These are seed constraints, not
 proposed surface-language semantics. Later stages can add channels, structured
 IR, syntax, types, and macros from inside the closure.
 
+Operand validation remains layered and bounded: lower rejects a thirty-first
+virtual register, emit rejects negative u64 syntax, assembler binding rejects
+values outside u64, and literal process exits must fit 0..255. None of these
+checks enlarges a generated program's runtime state.
+
 Build the current vertical slice with:
 
 ```sh

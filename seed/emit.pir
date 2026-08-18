@@ -17,15 +17,11 @@ bytes prologue ":\n    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n    sub sp, s
 bytes arityset ".set L_a,"
 bytes argchecka "    .if "
 bytes argcheckb ">=L_a\n    .error \"plang0: arg index\"\n    .endif\n"
-bytes movz "    movz x9, #("
-bytes immlow " & 0xffff)\n"
-bytes imm16a "    .if (("
-bytes imm16b " >> 16) & 0xffff)\n    movk x9, #(("
-bytes imm16c " >> 16) & 0xffff), lsl #16\n    .endif\n"
-bytes imm32b " >> 32) & 0xffff)\n    movk x9, #(("
-bytes imm32c " >> 32) & 0xffff), lsl #32\n    .endif\n"
-bytes imm48b " >> 48) & 0xffff)\n    movk x9, #(("
-bytes imm48c " >> 48) & 0xffff), lsl #48\n    .endif\n"
+bytes movz ".set U,"
+bytes immlow "\n    movz x9,#(U&0xffff)\n"
+bytes imm16a "    .if (U>>16)&0xffff\n    movk x9,#((U>>16)&0xffff),lsl #16\n    .endif\n"
+bytes imm32b "    .if (U>>32)&0xffff\n    movk x9,#((U>>32)&0xffff),lsl #32\n    .endif\n"
+bytes imm48b "    .if (U>>48)&0xffff\n    movk x9,#((U>>48)&0xffff),lsl #48\n    .endif\n"
 bytes arghead "    stur x"
 bytes store "\n    stur x9, [x29, #-"
 bytes store0 "    stur x0, [x29, #-"
@@ -86,7 +82,8 @@ bytes outa "    adrp x0, L_data_"
 bytes outb "@PAGE\n    add x0, x0, L_data_"
 bytes outc "@PAGEOFF\n    mov x1, #L_size_"
 bytes outd "\n    bl _plang_"
-bytes exita "    movz x0, #"
+bytes exita ".set X,"
+bytes exitb "\n.if X>>8\n.error \"plang0: exit\"\n.endif\n    movz x0,#X\n"
 bytes epilogue "    add sp, sp, #240\n    ldp x29, x30, [sp], #16\n    ret\n"
 bytes comma ", [x29, #-"
 bytes mainword "main"
@@ -418,6 +415,10 @@ jump body
 label u64
 call %alen next 3 %fd %a %capacity
 call %blen next 3 %fd %b %capacity
+load8 %byte %b %zero
+u64 %char 45
+eq %test %byte %char
+nonzero %test invalid
 data %piece %piecesize movz
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %b %blen
@@ -425,27 +426,9 @@ data %piece %piecesize immlow
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize imm16a
 call %wrote put 2 %piece %piecesize
-call %wrote put 2 %b %blen
-data %piece %piecesize imm16b
-call %wrote put 2 %piece %piecesize
-call %wrote put 2 %b %blen
-data %piece %piecesize imm16c
-call %wrote put 2 %piece %piecesize
-data %piece %piecesize imm16a
-call %wrote put 2 %piece %piecesize
-call %wrote put 2 %b %blen
 data %piece %piecesize imm32b
 call %wrote put 2 %piece %piecesize
-call %wrote put 2 %b %blen
-data %piece %piecesize imm32c
-call %wrote put 2 %piece %piecesize
-data %piece %piecesize imm16a
-call %wrote put 2 %piece %piecesize
-call %wrote put 2 %b %blen
 data %piece %piecesize imm48b
-call %wrote put 2 %piece %piecesize
-call %wrote put 2 %b %blen
-data %piece %piecesize imm48c
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize store
 call %wrote put 2 %piece %piecesize
@@ -969,7 +952,7 @@ call %alen next 3 %fd %a %capacity
 data %piece %piecesize exita
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %a %alen
-data %piece %piecesize line
+data %piece %piecesize exitb
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize epilogue
 call %wrote put 2 %piece %piecesize

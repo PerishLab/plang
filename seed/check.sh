@@ -335,6 +335,29 @@ for source in "$root"/seed/invalid-symbol-*.pir; do
     echo "$error" | grep -q "$symbol"
 done
 
+set +e
+$work/lex "$root/seed/invalid-u64-negative.pir" | $work/lower | $work/emit > "$work/invalid-u64-negative.self.s" 2> "$work/invalid-u64-negative.self.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid-u64-negative.self.error")" = "plang0: emitter rejected token stream"
+
+$work/lex "$root/seed/invalid-u64-overflow.pir" | $work/lower | $work/emit > "$work/invalid-u64-overflow.self.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-u64-overflow.self.s" -o "$work/invalid-u64-overflow.self" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "literal value out of range"
+
+$work/lex "$root/seed/invalid-exit-status.pir" | $work/lower | $work/emit > "$work/invalid-exit-status.self.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-exit-status.self.s" -o "$work/invalid-exit-status.self" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "error: plang0: exit"
+
 for source in "$root"/seed/invalid-top-*.pir; do
     set +e
     python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
@@ -344,6 +367,14 @@ for source in "$root"/seed/invalid-top-*.pir; do
 done
 
 for source in "$root"/seed/invalid-symbol-*.pir; do
+    set +e
+    python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
+    status=$?
+    set -e
+    test "$status" = 1
+done
+
+for source in "$root"/seed/invalid-register-count.pir "$root"/seed/invalid-u64-negative.pir "$root"/seed/invalid-u64-overflow.pir "$root"/seed/invalid-exit-status.pir; do
     set +e
     python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
     status=$?
@@ -409,6 +440,13 @@ set -e
 test "$status" = 1
 test "$(cat "$work/invalid.semantic.error")" = "plang0: lowering rejected token stream"
 
+set +e
+$work/lex "$root/seed/invalid-register-count.pir" | $work/lower > "$work/invalid.register.tokens" 2> "$work/invalid.register.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid.register.error")" = "plang0: lowering rejected token stream"
+
 $work/lex "$root/seed/lower.pir" | $work/lower | $work/emit > "$work/lower.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.self.s" -o "$work/lower.self"
 
@@ -418,6 +456,13 @@ status=$?
 set -e
 test "$status" = 1
 test "$(cat "$work/invalid.semantic.self.error")" = "plang0: lowering rejected token stream"
+
+set +e
+$work/lex "$root/seed/invalid-register-count.pir" | $work/lower.self > "$work/invalid.register.self.tokens" 2> "$work/invalid.register.self.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid.register.self.error")" = "plang0: lowering rejected token stream"
 
 $work/lex "$root/seed/async.pir" | $work/lower | $work/emit > "$work/async.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.self.s" -o "$work/async.self"
@@ -536,6 +581,31 @@ for source in "$root"/seed/invalid-symbol-*.pir; do
     test "$status" = 1
     echo "$error" | grep -q "$symbol"
 done
+
+set +e
+$work/lex "$root/seed/invalid-u64-negative.pir" | $work/lower.self | $work/emit.self > "$work/invalid-u64-negative.fixed.s" 2> "$work/invalid-u64-negative.fixed.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid-u64-negative.fixed.error")" = "plang0: emitter rejected token stream"
+
+$work/lex "$root/seed/invalid-u64-overflow.pir" | $work/lower.self | $work/emit.self > "$work/invalid-u64-overflow.fixed.s"
+cmp "$work/invalid-u64-overflow.self.s" "$work/invalid-u64-overflow.fixed.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-u64-overflow.fixed.s" -o "$work/invalid-u64-overflow.fixed" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "literal value out of range"
+
+$work/lex "$root/seed/invalid-exit-status.pir" | $work/lower.self | $work/emit.self > "$work/invalid-exit-status.fixed.s"
+cmp "$work/invalid-exit-status.self.s" "$work/invalid-exit-status.fixed.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-exit-status.fixed.s" -o "$work/invalid-exit-status.fixed" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "error: plang0: exit"
 
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"
