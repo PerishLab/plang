@@ -172,6 +172,18 @@ for source in "$root"/seed/borrow-invalid-*.pir; do
         "plang0: borrow lowering rejected token stream"
 done
 
+$work/lex "$root/seed/borrow-identity.pir" > "$work/borrow-identity.source"
+test "$($work/meta 3< "$work/borrow-identity.source" < \
+    "$root/seed/atoms.manifest")" = "borrow"
+"$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" \
+    "$work" "$work/borrow-identity.source" "$work/borrow-identity.tokens"
+! grep -q '^@borrow' "$work/borrow-identity.tokens"
+$work/lower < "$work/borrow-identity.tokens" |
+    $work/emit > "$work/borrow-identity.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" \
+    "$work/borrow-identity.s" -o "$work/borrow-identity"
+test "$($work/borrow-identity)" = "borrow identity ok"
+
 test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
 async"
 test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms-with-utf8.manifest")" = "collect
