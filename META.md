@@ -120,11 +120,11 @@ compile work/token overflow    -> rejected before pass launch
 meta.pir rebuilt output        == byte-identical fixed point
 ```
 
-For canonical `await.pir`, the census sees 2591 source tokens, two
+For canonical `await.pir`, the census sees 2672 source tokens, two
 `@stream.collect`, one source `@await.recv`, four `@async` frames, and three
-`@await.send` extension markers. Send leaves 2591 tokens unchanged, collect
-reaches 2749, and async reaches 3033, matching every materialized stage.
-Cumulative compiler work is 7931/8192, restoring 261 tokens of headroom without
-widening the budget. The isolated extension boundary accepts `6 -> 36` at
+`@await.send` extension markers. Send leaves 2672 tokens unchanged, collect
+reaches 2830, and async reaches 3114, matching every materialized stage.
+Cumulative compiler work is 8174/8192, leaving 18 tokens without widening
+the budget. The isolated extension boundary accepts `6 -> 36` at
 budget 36 and rejects budget 35. Unknown source markers still reach ordinary
 PIR1 lowering and are rejected there.

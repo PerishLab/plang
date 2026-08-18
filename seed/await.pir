@@ -7,13 +7,14 @@ bytes invalid "plang0: await contract failed\n"
 func scheduler_new 1
 arg %capacity 0
 u64 %zero 0
-u64 %bytes 40
+u64 %bytes 48
 u64 %scale 8
 u64 %queue_at 0
 u64 %capacity_at 8
 u64 %read_at 16
 u64 %write_at 24
 u64 %count_at 32
+u64 %attached_at 40
 zero %capacity failed
 alloc %scheduler %bytes
 zero %scheduler failed
@@ -25,6 +26,7 @@ store64 %scheduler %capacity_at %capacity
 store64 %scheduler %read_at %zero
 store64 %scheduler %write_at %zero
 store64 %scheduler %count_at %zero
+store64 %scheduler %attached_at %zero
 ret %scheduler
 label failed
 ret %zero
@@ -460,6 +462,7 @@ arg %scheduler 1
 arg %channel 2
 arg %target 3
 u64 %zero 0
+u64 %one 1
 u64 %bytes 56
 u64 %resume_at 0
 u64 %pc_at 8
@@ -477,6 +480,16 @@ store64 %task %channel_at %channel
 store64 %task %target_at %target
 store64 %task %done_at %zero
 store64 %task %count_at %zero
+zero %scheduler ready
+u64 %capacity_at 8
+u64 %attached_at 40
+load64 %capacity %scheduler %capacity_at
+load64 %attached %scheduler %attached_at
+eq %test %attached %capacity
+nonzero %test failed
+add %attached %attached %one
+store64 %scheduler %attached_at %attached
+label ready
 ret %task
 label failed
 ret %zero
@@ -702,7 +715,7 @@ end
 func wake_contract 0
 u64 %zero 0
 u64 %one 1
-u64 %scheduler_capacity 4
+u64 %scheduler_capacity 2
 u64 %channel_capacity 1
 u64 %wait_capacity 2
 u64 %value 65
@@ -717,17 +730,25 @@ call %first task_new 4 %resume %scheduler %channel %target
 zero %first bad
 call %second task_new 4 %resume %scheduler %channel %target
 zero %second bad
+call %third task_new 4 %resume %scheduler %channel %target
+nonzero %third bad
 call %status channel_wait 2 %channel %first
 zero %status bad
-call %status channel_wait 2 %channel %second
+call %status scheduler_enqueue 2 %scheduler %second
 zero %status bad
 call %status channel_send 2 %channel %value
 zero %status bad
 call %next scheduler_next 1 %scheduler
-ne %test %next %first
+ne %test %next %second
 nonzero %test bad
 call %next scheduler_next 1 %scheduler
-nonzero %next bad
+ne %test %next %first
+nonzero %test bad
+call %status channel_recv 2 %channel %target
+ne %test %status %one
+nonzero %test bad
+call %status channel_wait 2 %channel %second
+zero %status bad
 call %status channel_close 1 %channel
 zero %status bad
 call %next scheduler_next 1 %scheduler

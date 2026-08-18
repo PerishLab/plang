@@ -4,21 +4,26 @@
 adds three fixed-capacity objects to the bounded channel state machine:
 
 ```text
-scheduler = runnable task FIFO
+scheduler = runnable task FIFO + attached task count
 channel   = value FIFO + reader waiter FIFO + writer waiter FIFO + terminal state
 task      = resume func + program counter + scheduler + channel + target + done
 ```
 
 All three objects allocate their complete storage at construction. Enqueue,
 wait, wake, resume, close, and fail allocate nothing. The scheduler is
-single-threaded and FIFO.
+single-threaded and FIFO. Construction enforces `attached tasks <= runnable
+capacity`; a task with no scheduler remains valid for synchronous contracts.
+Attachment is lifetime-scoped and is not recycled when a task finishes. The
+trusted runtime contract also keeps each attached task in exactly one placement:
+running, runnable, one waiter FIFO, or done; generated await forms preserve it.
 
 A resumable consumer first polls `channel_recv`. On `pending`, it registers its
 task in the channel's waiter FIFO and returns to the scheduler; it is not placed
 back on the runnable queue and therefore cannot busy-poll. Sending a value wakes
-one reader. Closing or failing a channel wakes every reader that fits in the
-preallocated runnable queue. A wake that encounters a full runnable queue leaves
-the waiter registered so the transition can be retried without losing a task.
+one reader. Closing or failing a channel wakes every reader. Because a waiter is
+not runnable, any legal wake observes `runnable <= attached - waiters`, so the
+preallocated queue has room for every task being moved. Queue-full wake is thus
+excluded by construction rather than deferred to an unspecified retry.
 
 The symmetric writer path was first proven as a hand-lowered baseline. A send
 that observes a full channel records its current program counter, enters the
@@ -38,6 +43,8 @@ consumer -> A/yield -> B/yield -> C/yield -> closed/done
 
 The output is `ABCawait ok`. A separate two-reader contract proves that a value
 wakes exactly one waiter while close and failure wake the remaining waiters.
+Its saturated case uses capacity two: one task is runnable, one is waiting, the
+wake fills the queue exactly, and construction of a third attached task fails.
 The producer's three sends now use `@await.send`, which preserves the explicit
 status of `@channel.send` while lowering the surrounding wait/retry state
 machine to ordinary PIR1. See `SEND.md` and `ASYNC.md`.
