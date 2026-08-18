@@ -796,4 +796,5 @@ $work/lower.self < "$work/await.fixed.atoms" | $work/emit.self > "$work/await.fi
 test "$($work/await.fixed)" = "ABCawait ok
 ABCcollect ok"
 
+"$root/seed/check-bootstrap.sh" > /dev/null
 "$root/seed/report.sh" > /dev/null

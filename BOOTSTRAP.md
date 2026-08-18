@@ -2,9 +2,9 @@
 
 The first seed targets arm64 Darwin. Each program declares a power-of-two arena
 from 4 KiB through 16 MiB; the compiler passes currently use 8 KiB or 32 KiB,
-while runtime fixtures may retain wider profiles. Python translates a
-deliberately small linear IR into assembly. The platform assembler, linker,
-loader, and ABI remain outside the closure.
+while runtime fixtures may retain wider profiles. The repository carries a
+178,498-byte text assembly seed for lex, lower, and emit. The platform
+assembler, linker, loader, and ABI remain outside the closure; Python does not.
 
 PIR1 has static bytes, functions of up to eight arguments, thirty local virtual
 registers, integer and memory operations, branches, calls, arena allocation,
@@ -16,12 +16,17 @@ arbitrarily long source file through one 4 KiB buffer and validates its byte
 surface without retaining the source. It exercises calls, branches, memory,
 argv, and bounded stream processing.
 
-The first closure is now closed around a lowering pass and emitter. Python
-builds `lower0` and `emit0`; that pair rebuilds `lower1` and `emit1`; and the
-rebuilt pair emits byte-identical assembly for both members. It also compiles
-and runs `hello.pir` plus the native arithmetic/bitwise fixture. Python remains
-as a readable oracle and test fixture, but
-is no longer required to reproduce this compiler stage once the pair exists.
+The first closure is closed around lex, lower, and emit. Committed stage-zero
+assembly builds three executables; that trio rebuilds all eight compiler units,
+and the rebuilt lex/lower/emit trio reproduces the same stage-one assembly for
+every unit byte for byte. Python remains a readable independent oracle and test
+fixture, but is not a cold-bootstrap dependency.
+
+The seed assembly is itself the previous self-hosted fixed point, not direct
+Python output. `SHA256SUMS` authenticates the three seed files and Darwin
+runtime; `SOURCE-SHA256` records the compiler sources from which that fixed
+point was cut. Source hashes are provenance rather than an input gate, because
+an old seed must remain able to compile an intentionally changed compiler.
 
 The canonical opcode manifest must exactly match the vocabularies embedded in
 lower, decode, and emit. `scan.pir` exercises unsigned `lt`, `argv`, `open`, and
@@ -64,14 +69,34 @@ last instruction before each `end` to be `exit` or `ret`. The terminal check is
 one bit of compiler state and does not attempt whole-function control-flow
 proof. None of these checks enlarges a generated program's runtime state.
 
-Build the current vertical slice with:
+Cold-bootstrap the complete compiler closure without Python with:
 
 ```sh
-mkdir -p build
-python3 seed/boot.py seed/hello.pir build/hello.s
-/usr/bin/clang -arch arm64 seed/arm64-darwin.s build/hello.s -o build/hello
-build/hello
+sh seed/bootstrap.sh
+build/bootstrap/hello
+build/bootstrap/await
+build/bootstrap/utf8-stream
 ```
+
+The script verifies the committed seed checksums, builds stage zero, builds
+stage one for lex/meta/send/collect/async/utf8-pass/lower/emit, rebuilds the same
+eight units with stage one, and requires byte-identical stage-one/stage-two
+assembly. It then executes hello, scheduled await/collect, and the injected
+UTF-8 stream atom. `seed/check-bootstrap.sh` repeats this path in a disposable
+directory and rejects any Python reference in the bootstrap script.
+
+Compiler evolution is ordered rather than circular. The old seed first builds
+a new compiler written in syntax it already understands; that compiler must
+rebuild itself to a fixed point. Only then may the checked-in seed be refreshed:
+
+```sh
+sh seed/update-bootstrap.sh --apply
+sh seed/check-bootstrap.sh
+```
+
+The update command is deliberately explicit and rewrites only the three seed
+assembly files plus their seed/source hash manifests. Its generated assembly
+diff is part of compiler review.
 
 The exhaustion fixture must print `plang: memory limit` to standard error and
 exit with status one.
@@ -89,6 +114,7 @@ Run the runtime, scanner, lexer, decoder, generated-compiler, and fixed-point
 contracts in a disposable build directory with:
 
 ```sh
+sh seed/check-bootstrap.sh
 sh seed/check.sh
 ```
 

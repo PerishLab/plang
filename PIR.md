@@ -1,8 +1,9 @@
 # PIR1
 
-PIR1 is the disposable closure language accepted by `seed/boot.py`. It is not
+PIR1 is the disposable self-hosting closure language accepted by the committed
+lex/lower/emit assembly seed and, independently, by `seed/boot.py`. It is not
 the plang surface language. It exists only to express the first compiler in a
-form that the first compiler can later rebuild.
+form that the first compiler can rebuild.
 
 A program declares a power-of-two arena from 4 KiB through 16 MiB, static byte
 strings, and functions.
@@ -78,9 +79,10 @@ labels with their function name. It retains at most thirty names of sixty-three
 bytes for the active function and streams every other token directly onward.
 
 `seed/emit.pir` consumes that normalized stream in one pass and emits linkable
-arm64 Darwin assembly. The Python seed compiles both members once; the resulting
-pair compiles both sources again, and the next generation is byte-identical.
-The rebuilt pair also compiles `hello.pir` successfully.
+arm64 Darwin assembly. The committed assembly seed builds lex/lower/emit; that
+trio rebuilds all compiler sources, and the next generation is byte-identical.
+The rebuilt closure also compiles `hello.pir` successfully. The Python oracle
+is a cross-implementation check, not the required first generation.
 
 `seed/check-opcodes.sh` extracts the instruction vocabulary embedded in lower,
 decode, and emit and requires exact equality. `seed/bitwise.pir` and

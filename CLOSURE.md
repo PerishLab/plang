@@ -5,6 +5,11 @@ the Python oracle and print the current measurement. Binary file and segment
 sizes depend on the active clang/linker; source, arena, fixed allocation, marker
 expansion, and identical-helper results are repository contracts.
 
+The separate cold-start artifact is 178,498 bytes of checked-in text assembly
+for lex/lower/emit. It is intentionally excluded from compiler-source totals:
+it is a reproducible fixed-point seed, while `seed/check-bootstrap.sh` proves
+that the seed rebuilds all eight current sources without Python.
+
 The baseline after introducing per-program arenas is:
 
 | pass | source B | linked B | strip -x B | __TEXT VM B | __DATA VM B | arena B | fixed max B | headroom B |
