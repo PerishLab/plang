@@ -490,13 +490,13 @@ u64 %c 67
 u64 %channel_at 24
 u64 %done_at 40
 load64 %channel %task %channel_at
-call %status channel_send 2 %channel %a
+@channel.send %status %channel %a
 ne %test %status %one
 nonzero %test bad
-call %status channel_send 2 %channel %b
+@channel.send %status %channel %b
 ne %test %status %one
 nonzero %test bad
-call %status channel_send 2 %channel %c
+@channel.send %status %channel %c
 ne %test %status %one
 nonzero %test bad
 call %status channel_close 1 %channel

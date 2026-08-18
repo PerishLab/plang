@@ -70,13 +70,19 @@ stream projection into `@await.recv`, so its executable dependency is
 `collect -> async -> lower -> emit`; reversing the atom passes is an explicit
 rejected fixture rather than an assumed commutation law. See `COLLECT.md`.
 
+`seed/send.pir` adds explicit synchronous `@channel.send` lowering. It commutes
+with both collect and async despite overlapping runtime channel effects, proving
+that runtime READS/WRITES and compiler transform dependencies are distinct.
+See `SEND.md`.
+
 `seed/meta.pir` now derives that dependency order from the bounded atom
-manifest, rejects unresolved emissions and cycles, and reaches its own
-byte-identical fixed point. A thin shell adapter remains the platform transport
-for starting the ordered streaming executables. See `META.md`.
+manifest, proves exact framing/work bounds, rejects unresolved emissions and
+cycles, and reaches its own byte-identical fixed point. A thin shell adapter
+remains the platform transport for starting the ordered streaming executables.
+See `META.md`.
 
 Compiler-pass arenas are now program-owned profiles rather than one runtime
-constant: lex, meta, collect, async, and lower use 8 KiB; emit uses 32 KiB.
+constant: lex, meta, send, collect, async, and lower use 8 KiB; emit uses 32 KiB.
 `seed/profile.pir` proves a 4 KiB arena through both compiler generations, and
 `seed/report.sh` checks fixed-allocation headroom and repeated helpers. See
 `CLOSURE.md` for the measured baseline and the decision to defer pass fusion.

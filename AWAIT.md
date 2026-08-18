@@ -30,6 +30,8 @@ consumer -> A/yield -> B/yield -> C/yield -> closed/done
 
 The output is `ABCawait ok`. A separate two-reader contract proves that a value
 wakes exactly one waiter while close and failure wake the remaining waiters.
+The producer's three sends use `@channel.send`, whose status remains explicit;
+see `SEND.md`.
 
 A second scheduled consumer uses `@stream.collect` over another `ABC` channel.
 It suspends before the producer runs, wakes once, drains the finite stream into

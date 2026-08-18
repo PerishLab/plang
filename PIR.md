@@ -74,10 +74,14 @@ point. See `ASYNC.md` for its bounds and explicit failure contract.
 `@stream.collect` projections into `@await.recv`. This establishes the first
 tested dependency edge between atom passes. See `COLLECT.md`.
 
-`seed/meta.pir` reads up to eight atom records, derives their pass order from
-consumed and emitted markers, and rejects unresolved edges or cycles. It is
-self-hosted; only process transport remains in `seed/run-atoms.sh`. See
-`META.md`.
+`seed/send.pir` expands explicit non-blocking channel sends. Its byte-identical
+commutation with collect and async separates runtime effects from compiler pass
+dependencies. See `SEND.md`.
+
+`seed/meta.pir` reads up to eight atom records, derives pass order from consumed
+and emitted markers, and proves exact token framing, emission multiplicity, and
+cumulative work against an explicit budget. It is self-hosted; only process
+transport remains in `seed/run-atoms.sh`. See `META.md`.
 
 The emitter implements only the PIR1 operations needed by the pair and hello
 fixture, with calls capped at four arguments and small immediates emitted through

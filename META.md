@@ -1,8 +1,9 @@
 # Bounded atom meta-driver
 
-`seed/meta.pir` is the first self-hosted ordering kernel for semantic atoms. It
-reads a locally framed manifest from standard input and emits executable pass
-names in dependency order, one per line. The current manifest shape is:
+`seed/meta.pir` is the self-hosted planning kernel for semantic atoms. It reads
+a locally framed manifest from standard input, reads the original token stream
+from file descriptor 3, proves a bounded plan, and emits executable pass names
+in dependency order. The manifest shape is:
 
 ```text
 ATOM_COUNT
@@ -10,81 +11,83 @@ WORK_BUDGET
 NAME
 CONSUMES_MARKER
 EMITS_MARKER_OR_DASH
+READS
 WRITES
-MAX_TOKENS_PER_MARKER
+INPUT_TOKENS_PER_MARKER
+OUTPUT_TOKENS_PER_MARKER
+EMITTED_MARKERS_PER_MARKER
 EXECUTABLE
 ... repeated ATOM_COUNT times
 ```
 
-The seed admits one through eight atoms. Every field is nonempty and at most 63
-bytes; expansion bounds are canonical positive decimal values no greater than
-4095. `WORK_BUDGET` is a canonical positive decimal value no greater than
-65535. `WRITES` is `-` for the empty set or a `+`-separated set of lowercase
-effect names; `EXECUTABLE` is the transport identity. Ordering remains derived
-from `CONSUMES_MARKER` and `EMITS_MARKER_OR_DASH`.
+The seed admits one through eight atoms. Text fields are nonempty and at most
+63 bytes. `READS` and `WRITES` are `-` for the empty set or `+`-separated
+lowercase effect names. Token framing is canonical positive decimal no greater
+than 4095; emitted-marker multiplicity is one canonical digit from zero through
+eight. A dash emission requires multiplicity zero, and a non-dash emission
+requires a positive multiplicity. `WORK_BUDGET` is 1..65535.
 
-For each non-dash emitted marker, exactly one atom must consume it. Duplicate
-consumers and unresolved emissions are rejected before ordering. A bounded Kahn
-sort then emits the first ready atom in manifest order, producing deterministic
-output and rejecting cycles. At most eight 336-byte records are allocated from
-the checked arena; all comparisons operate on fixed 64-byte seats.
+For each emitted marker, exactly one atom must consume it. Duplicate consumers,
+unresolved emissions, and cycles are rejected. A bounded Kahn sort chooses the
+first ready atom in manifest order, giving a deterministic plan. The registry
+uses at most eight 416-byte records; together with the input window and operand
+seat, fixed allocation is 7488 bytes inside the 8 KiB arena.
 
-Before emitting an order, the same kernel reads the original token stream from
-file descriptor 3 and performs a bounded marker census. In topological order it
-propagates each source marker count across the declared emission edge (one
-emitted marker per consumed marker), then proves both of these conservative
-bounds against `WORK_BUDGET`:
+The source census retains only token and marker counters. In topological order,
+the planner applies each atom's exact declared transfer:
 
 ```text
-next token bound = current token bound + marker count * expansion bound
-compile work     = sum(current token bound before each atom pass)
+next tokens = current tokens
+            - marker count * input framing
+            + marker count * output framing
+
+next emitted-marker count += marker count * emission multiplicity
+compile work               += current tokens before each pass
 ```
 
-The token formula intentionally does not subtract the consumed marker framing,
-so it remains an upper bound without teaching the planner atom-specific operand
-widths. Census and planning retain only counters; source tokens are reread, not
-buffered in the meta arena.
+Every intermediate token count and cumulative work must fit the explicit
+budget. No atom-specific operand knowledge is hidden in the planner, and source
+tokens are reread rather than buffered in its arena.
 
-`WRITES` is now executable rather than documentary. If two atoms share any
-write effect, the dependency graph must contain a path in one direction between
-them. An ordered conflict such as `collect -> async` is valid; two unordered
-writers are rejected before any pass starts. Read sets and read-after-write
-edge inference are deliberately outside this first effect closure.
+`READS` and `WRITES` describe effects of the generated program, not mutations
+performed by compiler passes. The third atom makes the distinction executable:
+`send` and `async` both touch channel state at runtime, but their transforms
+consume disjoint markers and commute byte for byte. The same is true for
+`send` and `collect`. Runtime effect overlap therefore does not manufacture a
+compiler dependency or rejection. Compiler ordering is derived only from
+marker production and consumption; runtime effects remain structured input for
+future scheduling and race analysis.
 
-The canonical manifest deliberately lists `async` before `collect`. Because
-collect emits `@await.recv`, the kernel derives this order instead:
+The canonical manifest deliberately lists `async` before `collect`, but collect
+emits `@await.recv`, so the kernel derives:
 
 ```text
+send
 collect
 async
 ```
 
-`seed/run-atoms.sh` is a thin platform transport adapter. It presents the source
-token file to the kernel on file descriptor 3, asks for the proved order, then
-recursively constructs one real Unix pipeline using a new descriptor 3 for the
-order file. Atom output is never materialized between passes: only the
-at-most-eight-line order file and bounded kernel pipe buffers exist. `pipefail`
-preserves any stage failure. The adapter never interprets the manifest graph
-itself. PIR1 has no process-spawn primitive yet, so process creation and pipe
-transport remain outside the closure alongside assembler, linker, loader, and
-ABI. The ordering decision is inside the closure.
+`seed/run-atoms.sh` presents the source on descriptor 3, obtains the proved
+order, then recursively constructs one Unix pipeline. Atom output is not
+materialized between passes; only the at-most-eight-line order file and bounded
+kernel pipe buffers exist. Process creation and pipe transport remain platform
+services outside PIR1 alongside assembler, linker, loader, and ABI.
 
 The executable contracts prove:
 
 ```text
-manual collect -> async output == meta-driver output byte for byte
-duplicate consumer              -> rejected
-unresolved emitted marker       -> rejected
-dependency cycle                -> rejected
-compile work/token budget        -> rejected before pass launch
-unordered overlapping writes    -> rejected before pass launch
-malformed write set              -> rejected
-meta.pir rebuilt output         == byte-identical fixed point
+manual send -> collect -> async == planned output byte for byte
+send -> async                  == async -> send
+send -> collect                == collect -> send
+overlapping runtime writes     != compiler-pass conflict
+duplicate/unresolved/cycle     -> rejected
+framing or emission mismatch   -> rejected
+compile work/token overflow    -> rejected before pass launch
+meta.pir rebuilt output        == byte-identical fixed point
 ```
 
-For the canonical `await.pir` source, the census sees 2220 input tokens, two
-`@stream.collect` markers, and one source `@await.recv`. Its conservative plan
-is 2390 tokens after collect, 2498 after async, and 4610 token-visits of compiler
-work, all below the explicit 8192 budget. The actual atom pipeline remains byte
-identical to the manually ordered pipeline. Unknown source markers still reach
-ordinary PIR1 lowering and are rejected there.
+For canonical `await.pir`, the census sees 2214 source tokens, three
+`@channel.send`, two `@stream.collect`, and one source `@await.recv`. The exact
+plan reaches 2220 tokens after send, 2378 after collect, and 2468 after async;
+its cumulative compiler work is 6812, below the explicit 8192 budget. Unknown
+source markers still reach ordinary PIR1 lowering and are rejected there.

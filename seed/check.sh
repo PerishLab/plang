@@ -13,6 +13,7 @@ python3 "$root/seed/boot.py" "$root/seed/scan.pir" "$work/scan.s"
 python3 "$root/seed/boot.py" "$root/seed/lex.pir" "$work/lex.s"
 python3 "$root/seed/boot.py" "$root/seed/decode.pir" "$work/decode.s"
 python3 "$root/seed/boot.py" "$root/seed/meta.pir" "$work/meta.s"
+python3 "$root/seed/boot.py" "$root/seed/send.pir" "$work/send.s"
 python3 "$root/seed/boot.py" "$root/seed/collect.pir" "$work/collect.s"
 python3 "$root/seed/boot.py" "$root/seed/async.pir" "$work/async.s"
 python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
@@ -27,6 +28,7 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lex.s" -o "$work/lex"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/decode.s" -o "$work/decode"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.s" -o "$work/meta"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/send.s" -o "$work/send"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect.s" -o "$work/collect"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.s" -o "$work/async"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
@@ -54,7 +56,7 @@ $work/lex "$root/seed/hello.pir" > "$work/async-identity.tokens"
 $work/async < "$work/async-identity.tokens" > "$work/async-identity.out"
 cmp "$work/async-identity.tokens" "$work/async-identity.out"
 
-$work/lex "$root/seed/await.pir" | $work/collect | $work/async > "$work/async-once.tokens"
+$work/lex "$root/seed/await.pir" | $work/send | $work/collect | $work/async > "$work/async-once.tokens"
 $work/async < "$work/async-once.tokens" > "$work/async-twice.tokens"
 cmp "$work/async-once.tokens" "$work/async-twice.tokens"
 
@@ -66,9 +68,12 @@ $work/lower < "$work/async-frames.tokens" | $work/emit > "$work/async-frames.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async-frames.s" -o "$work/async-frames"
 $work/async-frames
 
-test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
+test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "send
+collect
 async"
 test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-pure.manifest")" = "pure"
+test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-runtime-overlap.manifest")" = "left
+right"
 
 for manifest in "$root"/seed/atoms-invalid-*.manifest; do
     set +e
@@ -89,7 +94,7 @@ test "$(wc -l < "$work/collect-max.normal")" -eq 945
 ! grep -q '^@' "$work/collect-max.normal"
 
 $work/lex "$root/seed/collect-order.pir" > "$work/collect-order.source"
-$work/collect < "$work/collect-order.source" | $work/async > "$work/collect-order.manual"
+$work/send < "$work/collect-order.source" | $work/collect | $work/async > "$work/collect-order.manual"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/collect-order.source" "$work/collect-order.meta"
 cmp "$work/collect-order.manual" "$work/collect-order.meta"
 ! grep -q '^@' "$work/collect-order.meta"
@@ -124,6 +129,27 @@ for source in "$root"/seed/async-invalid-*.pir; do
     test "$status" = 1
     test "$(cat "$work/async-invalid.error")" = "plang0: async lowering rejected token stream"
 done
+
+$work/lex "$root/seed/hello.pir" > "$work/send-identity.tokens"
+$work/send < "$work/send-identity.tokens" > "$work/send-identity.out"
+cmp "$work/send-identity.tokens" "$work/send-identity.out"
+$work/send < "$work/await.source.tokens" > "$work/send-once.tokens"
+test "$(wc -l < "$work/send-once.tokens")" -eq 2220
+$work/send < "$work/send-once.tokens" > "$work/send-twice.tokens"
+cmp "$work/send-once.tokens" "$work/send-twice.tokens"
+$work/send < "$work/await.source.tokens" | $work/async > "$work/send-async.tokens"
+$work/async < "$work/await.source.tokens" | $work/send > "$work/async-send.tokens"
+cmp "$work/send-async.tokens" "$work/async-send.tokens"
+$work/send < "$work/await.source.tokens" | $work/collect > "$work/send-collect.tokens"
+$work/collect < "$work/await.source.tokens" | $work/send > "$work/collect-send.tokens"
+cmp "$work/send-collect.tokens" "$work/collect-send.tokens"
+
+set +e
+$work/lex "$root/seed/send-invalid-empty.pir" | $work/send > "$work/send-invalid.tokens" 2> "$work/send-invalid.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/send-invalid.error")" = "plang0: send lowering rejected token stream"
 
 set +e
 error=$($work/exhaust 2>&1)
@@ -170,7 +196,7 @@ test "$(sed -n '1p' "$work/unterminated.tokens")" = "bytes"
 
 $work/lex "$root/seed/decode.pir" | $work/decode > "$work/decode.out"
 test "$(sed -n '1p' "$work/decode.out")" = "decode ok"
-$work/lex "$root/seed/await.pir" | $work/collect | $work/async | $work/decode > "$work/await.decode.out"
+$work/lex "$root/seed/await.pir" | $work/send | $work/collect | $work/async | $work/decode > "$work/await.decode.out"
 test "$(sed -n '1p' "$work/await.decode.out")" = "decode ok"
 
 set +e
@@ -202,9 +228,13 @@ $work/lex "$root/seed/async.pir" | $work/lower | $work/emit > "$work/async.self.
 $work/lex "$root/seed/collect.pir" | $work/lower | $work/emit > "$work/collect.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect.self.s" -o "$work/collect.self"
 
+$work/lex "$root/seed/send.pir" | $work/lower | $work/emit > "$work/send.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/send.self.s" -o "$work/send.self"
+
 $work/lex "$root/seed/meta.pir" | $work/lower | $work/emit > "$work/meta.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.self.s" -o "$work/meta.self"
-test "$($work/meta.self 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
+test "$($work/meta.self 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "send
+collect
 async"
 
 $work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"
@@ -216,6 +246,8 @@ $work/lex "$root/seed/async.pir" | $work/lower.self | $work/emit.self > "$work/a
 cmp "$work/async.self.s" "$work/async.fixed.s"
 $work/lex "$root/seed/collect.pir" | $work/lower.self | $work/emit.self > "$work/collect.fixed.s"
 cmp "$work/collect.self.s" "$work/collect.fixed.s"
+$work/lex "$root/seed/send.pir" | $work/lower.self | $work/emit.self > "$work/send.fixed.s"
+cmp "$work/send.self.s" "$work/send.fixed.s"
 $work/lex "$root/seed/meta.pir" | $work/lower.self | $work/emit.self > "$work/meta.fixed.s"
 cmp "$work/meta.self.s" "$work/meta.fixed.s"
 $work/lex "$root/seed/emit.pir" | $work/lower.self | $work/emit.self > "$work/emit.fixed.s"

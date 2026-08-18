@@ -4,5 +4,8 @@ collect
 @stream.collect
 @await.recv
 channel+collector+task
+channel+collector+status+task
+6
 85
+1
 collect

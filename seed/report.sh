@@ -5,7 +5,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 report_work=$(mktemp -d)
 trap 'rm -rf "$report_work"' EXIT
 
-units="lex meta collect async lower emit"
+units="lex meta send collect async lower emit"
 resources="$root/seed/resources.manifest"
 total_source=0
 total_linked=0
@@ -65,13 +65,13 @@ printf '%s\n' '| identical helper | copies | one copy B | removable duplicate B 
 printf '%s\n' '|---|---:|---:|---:|'
 
 for spec in \
-    'next meta collect async lower' \
-    'same meta collect async lower' \
+    'next meta send collect async lower' \
+    'same meta send collect async lower' \
     'decimal meta collect async lower' \
-    'put meta collect async lower' \
-    'emit meta collect async lower' \
-    'copy meta collect async lower' \
-    'nextcopy meta collect async' \
+    'put meta send collect async lower' \
+    'emit meta send collect async lower' \
+    'copy meta send collect async lower' \
+    'nextcopy meta send collect async' \
     'item collect async'
 do
     set -- $spec
@@ -109,3 +109,4 @@ printf '%s\n' '- `@async(S)`: `15 + 10S` tokens, `1 <= S <= 8`'
 printf '%s\n' '- `@state`: `2` tokens'
 printf '%s\n' '- `@await.recv`: `36` tokens, at most `8` sites'
 printf '%s\n' '- `@stream.collect`: `85` tokens, at most `8` sites'
+printf '%s\n' '- `@channel.send`: `4 -> 6` tokens per site'
