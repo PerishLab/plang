@@ -297,8 +297,28 @@ set -e
 test "$status" = 1
 test "$error" = "plang0: lowering rejected token stream"
 
+set +e
+python3 "$root/seed/boot.py" "$root/seed/invalid-func-arity.pir" "$work/invalid.py.s" >/dev/null 2>&1
+status=$?
+set -e
+test "$status" = 1
+
+set +e
+$work/lex "$root/seed/invalid-func-arity.pir" | $work/lower > "$work/invalid.semantic.tokens" 2> "$work/invalid.semantic.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid.semantic.error")" = "plang0: lowering rejected token stream"
+
 $work/lex "$root/seed/lower.pir" | $work/lower | $work/emit > "$work/lower.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.self.s" -o "$work/lower.self"
+
+set +e
+$work/lex "$root/seed/invalid-func-arity.pir" | $work/lower.self > "$work/invalid.semantic.self.tokens" 2> "$work/invalid.semantic.self.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/invalid.semantic.self.error")" = "plang0: lowering rejected token stream"
 
 $work/lex "$root/seed/async.pir" | $work/lower | $work/emit > "$work/async.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.self.s" -o "$work/async.self"

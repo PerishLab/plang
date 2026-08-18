@@ -479,7 +479,14 @@ zero %funclen invalid
 call %wrote emit 2 %buffer %funclen
 call %test copy 3 %function %buffer %funclen
 zero %test invalid
-call %test raw 3 %buffer %capacity %one
+call %length next 3 %fd %buffer %capacity
+zero %length invalid
+call %wrote emit 2 %buffer %length
+call %arity decimal 2 %buffer %length
+eq %test %arity %unknown
+nonzero %test invalid
+u64 %value 8
+le %test %arity %value
 zero %test invalid
 store8 %state %zero %zero
 u64 %inside 1
