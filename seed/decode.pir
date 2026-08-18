@@ -1,6 +1,6 @@
 memory 16777216
 bytes top "memory 1\nbytes 2\nfunc 2\n"
-bytes body "arg 2\nu64 2\ndata 3\nadd 3\nsub 3\nmul 3\nand 3\nor 3\nxor 3\nshl 3\nshr 3\neq 3\nne 3\nlt 3\nle 3\nslt 3\nload8 3\nload64 3\nstore8 3\nstore64 3\nalloc 2\nargv 3\nread 4\nwrite 4\nopen 2\nclose 2\ncall 9\nlabel 1\njump 1\nzero 2\nnonzero 2\nout 1\nerr 1\nexit 1\nret 1\nend 0\n"
+bytes body "arg 2\nu64 2\ndata 3\nfuncptr 2\nadd 3\nsub 3\nmul 3\nand 3\nor 3\nxor 3\nshl 3\nshr 3\neq 3\nne 3\nlt 3\nle 3\nslt 3\nload8 3\nload64 3\nstore8 3\nstore64 3\nalloc 2\nargv 3\nread 4\nwrite 4\nopen 2\nclose 2\ncall 9\ninvoke 9\nlabel 1\njump 1\nzero 2\nnonzero 2\nout 1\nerr 1\nexit 1\nret 1\nend 0\n"
 bytes funcword "func"
 bytes endword "end"
 bytes ok "decode ok\n"

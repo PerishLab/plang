@@ -6,7 +6,7 @@ adds three fixed-capacity objects to the bounded channel state machine:
 ```text
 scheduler = runnable task FIFO
 channel   = value FIFO + reader waiter FIFO + terminal state
-task      = kind + program counter + scheduler + channel + target + done
+task      = resume func + program counter + scheduler + channel + target + done
 ```
 
 All three objects allocate their complete storage at construction. Enqueue,
@@ -34,8 +34,9 @@ wakes exactly one waiter while close and failure wake the remaining waiters.
 This is the intended compiler shape for a default-await projection: local values
 that cross suspension live in the task record, the resume label is represented
 by its program counter, and `pending` becomes waiter registration plus return.
-No platform thread, stackful coroutine, exception, or hidden allocation is
-required.
+The scheduler invokes the resume function stored in the task; it contains no
+task-kind dispatch. No platform thread, stackful coroutine, exception, or hidden
+allocation is required.
 
 The failed resume branch remains explicit. Surface lowering will write its
 diagnostic to `@channel.err` and choose a continuation or `@func.exit`; it will

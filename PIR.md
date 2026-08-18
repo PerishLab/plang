@@ -12,11 +12,11 @@ thirty named u64 virtual registers backed by one fixed stack frame.
 The current instructions are:
 
 ```text
-arg u64 data
+arg u64 data funcptr
 add sub mul and or xor shl shr
 eq ne lt le slt
 load8 load64 store8 store64
-alloc argv read write open close call
+alloc argv read write open close call invoke
 label jump zero nonzero
 out err exit ret
 ```
@@ -31,6 +31,11 @@ Every instruction is locally framed by its opcode. Variable-arity calls carry
 their arity explicitly as `call destination function arity arguments...`, so a
 consumer of the token stream never needs source line boundaries or a global
 function table merely to find the next instruction.
+
+`funcptr` materializes a non-main PIR function as a trusted code pointer, and
+`invoke` calls such a value with the same explicit-arity framing. See
+`FUNCTIONS.md` for the boundary between this unsafe closure primitive and a
+future checked surface `func` type.
 
 The closure member is a one-pass PIR1-to-assembly emitter. PIR1 is designed for
 that pass: every instruction occupies one line, functions use a fixed frame,

@@ -1,6 +1,6 @@
 memory 16777216
 bytes top "memory M\nbytes B\nfunc F\n"
-bytes body "arg A\nu64 U\ndata D\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
+bytes body "arg A\nu64 U\ndata D\nfuncptr F\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\ninvoke Y\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
 bytes constsec ".section __TEXT,__const\n"
 bytes datahead ".p2align 0\nL_data_"
 bytes datamid ":\n    .ascii "
@@ -42,7 +42,11 @@ bytes datab "@PAGE\n    add x9, x9, L_data_"
 bytes datac "@PAGEOFF\n    stur x9, [x29, #-"
 bytes datad "]\n    mov x9, #L_size_"
 bytes datae "\n    stur x9, [x29, #-"
+bytes funca "    adrp x9, _pir_"
+bytes funcb "@PAGE\n    add x9, x9, _pir_"
+bytes funcc "@PAGEOFF\n    stur x9, [x29, #-"
 bytes calla "    bl _pir_"
+bytes blr "    blr x9\n"
 bytes runtimea "    bl _plang_"
 bytes readcall "    bl _plang_read\n"
 bytes writecall "    bl _plang_write\n"
@@ -283,6 +287,9 @@ nonzero %test u64
 u64 %value 68
 eq %test %code %value
 nonzero %test data
+u64 %value 70
+eq %test %code %value
+nonzero %test function_pointer
 u64 %value 66
 eq %test %code %value
 nonzero %test binary
@@ -308,6 +315,9 @@ u64 %value 73
 eq %test %code %value
 nonzero %test io
 u64 %value 75
+eq %test %code %value
+nonzero %test call
+u64 %value 89
 eq %test %code %value
 nonzero %test call
 u64 %value 71
@@ -375,6 +385,21 @@ call %wrote put 2 %c %length
 data %piece %piecesize datae
 call %wrote put 2 %piece %piecesize
 call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label function_pointer
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+data %piece %piecesize funca
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize funcb
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize funcc
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
 data %piece %piecesize close
 call %wrote put 2 %piece %piecesize
 jump body
@@ -597,6 +622,9 @@ data %piece %piecesize close
 call %wrote put 2 %piece %piecesize
 jump body
 label call
+load8 %byte %op %zero
+u64 %char 105
+eq %value %byte %char
 call %alen next 3 %fd %a %capacity
 call %blen next 3 %fd %b %capacity
 call %length next 3 %fd %c %capacity
@@ -641,11 +669,22 @@ u64 %char 52
 ne %test %byte %char
 nonzero %test invalid
 label call_emit
+nonzero %value invoke_emit
 data %piece %piecesize calla
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %b %blen
 data %piece %piecesize line
 call %wrote put 2 %piece %piecesize
+jump call_store
+label invoke_emit
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize blr
+call %wrote put 2 %piece %piecesize
+label call_store
 data %piece %piecesize store0
 call %wrote put 2 %piece %piecesize
 call %wrote reg 2 %a %alen

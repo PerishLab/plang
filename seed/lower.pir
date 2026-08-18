@@ -1,6 +1,6 @@
 memory 16777216
 bytes top "memory 1\nbytes 2\nfunc F\n"
-bytes body "arg 2\nu64 2\ndata 3\nadd 3\nsub 3\nmul 3\nand 3\nor 3\nxor 3\nshl 3\nshr 3\neq 3\nne 3\nlt 3\nle 3\nslt 3\nload8 3\nload64 3\nstore8 3\nstore64 3\nalloc 2\nargv 3\nread 4\nwrite 4\nopen 2\nclose 2\ncall C\nlabel L\njump L\nzero Z\nnonzero Z\nout 1\nerr 1\nexit 1\nret 1\nend E\n"
+bytes body "arg 2\nu64 2\ndata 3\nfuncptr 2\nadd 3\nsub 3\nmul 3\nand 3\nor 3\nxor 3\nshl 3\nshr 3\neq 3\nne 3\nlt 3\nle 3\nslt 3\nload8 3\nload64 3\nstore8 3\nstore64 3\nalloc 2\nargv 3\nread 4\nwrite 4\nopen 2\nclose 2\ncall C\ninvoke I\nlabel L\njump L\nzero Z\nnonzero Z\nout 1\nerr 1\nexit 1\nret 1\nend E\n"
 bytes slots "8\n16\n24\n32\n40\n48\n56\n64\n72\n80\n88\n96\n104\n112\n120\n128\n136\n144\n152\n160\n168\n176\n184\n192\n200\n208\n216\n224\n232\n240\n"
 bytes prefix "%r"
 bytes join "_"
@@ -405,6 +405,9 @@ nonzero %test end
 u64 %value 67
 eq %test %code %value
 nonzero %test call
+u64 %value 73
+eq %test %code %value
+nonzero %test invoke
 u64 %value 76
 eq %test %code %value
 nonzero %test label
@@ -422,6 +425,19 @@ label call
 call %test fixed 4 %buffer %capacity %one %state
 zero %test invalid
 call %test raw 3 %buffer %capacity %one
+zero %test invalid
+call %length next 3 %fd %buffer %capacity
+zero %length invalid
+call %wrote emit 2 %buffer %length
+call %arity decimal 2 %buffer %length
+eq %test %arity %unknown
+nonzero %test invalid
+call %test fixed 4 %buffer %capacity %arity %state
+zero %test invalid
+jump token
+label invoke
+u64 %two 2
+call %test fixed 4 %buffer %capacity %two %state
 zero %test invalid
 call %length next 3 %fd %buffer %capacity
 zero %length invalid

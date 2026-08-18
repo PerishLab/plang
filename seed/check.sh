@@ -77,6 +77,8 @@ test "$(sed -n '1p' "$work/unterminated.tokens")" = "bytes"
 
 $work/lex "$root/seed/decode.pir" | $work/decode > "$work/decode.out"
 test "$(sed -n '1p' "$work/decode.out")" = "decode ok"
+$work/lex "$root/seed/await.pir" | $work/decode > "$work/await.decode.out"
+test "$(sed -n '1p' "$work/await.decode.out")" = "decode ok"
 
 set +e
 error=$($work/decode < "$root/seed/invalid.tokens" 2>&1)

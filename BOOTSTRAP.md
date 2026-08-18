@@ -56,3 +56,8 @@ ABI and the semantics intentionally deferred to later stages.
 and explicit task continuation. It demonstrates a consumer suspending without
 polling, being woken by a producer, yielding between values, and observing the
 terminal state after drain. See `AWAIT.md` for the lowering contract.
+
+Tasks carry their resume function directly through PIR1's `funcptr` and
+`invoke` operations, so the scheduler contains no task-kind switch. The trusted
+primitive and the future checked surface boundary are described in
+`FUNCTIONS.md`.

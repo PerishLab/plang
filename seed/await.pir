@@ -340,13 +340,13 @@ ret %zero
 end
 
 func task_new 4
-arg %kind 0
+arg %resume 0
 arg %scheduler 1
 arg %channel 2
 arg %target 3
 u64 %zero 0
 u64 %bytes 48
-u64 %kind_at 0
+u64 %resume_at 0
 u64 %pc_at 8
 u64 %scheduler_at 16
 u64 %channel_at 24
@@ -354,7 +354,7 @@ u64 %target_at 32
 u64 %done_at 40
 alloc %task %bytes
 zero %task failed
-store64 %task %kind_at %kind
+store64 %task %resume_at %resume
 store64 %task %pc_at %zero
 store64 %task %scheduler_at %scheduler
 store64 %task %channel_at %channel
@@ -446,15 +446,9 @@ end
 
 func task_resume 1
 arg %task 0
-u64 %one 1
-u64 %kind_at 0
-load64 %kind %task %kind_at
-eq %test %kind %one
-nonzero %test consumer
-call %result producer_resume 1 %task
-ret %result
-label consumer
-call %result consumer_resume 1 %task
+u64 %resume_at 0
+load64 %resume %task %resume_at
+invoke %result %resume 1 %task
 ret %result
 end
 
@@ -488,15 +482,16 @@ u64 %scheduler_capacity 4
 u64 %channel_capacity 1
 u64 %wait_capacity 2
 u64 %value 65
+funcptr %resume consumer_resume
 call %scheduler scheduler_new 1 %scheduler_capacity
 zero %scheduler bad
 call %channel channel_new 2 %channel_capacity %wait_capacity
 zero %channel bad
 alloc %target %one
 zero %target bad
-call %first task_new 4 %one %scheduler %channel %target
+call %first task_new 4 %resume %scheduler %channel %target
 zero %first bad
-call %second task_new 4 %one %scheduler %channel %target
+call %second task_new 4 %resume %scheduler %channel %target
 zero %second bad
 call %status channel_wait 2 %channel %first
 zero %status bad
@@ -542,15 +537,17 @@ u64 %wait_capacity 4
 u64 %budget 32
 call %status wake_contract 0
 zero %status invalid
+funcptr %consumer_resume consumer_resume
+funcptr %producer_resume producer_resume
 call %scheduler scheduler_new 1 %scheduler_capacity
 zero %scheduler limited
 call %channel channel_new 2 %channel_capacity %wait_capacity
 zero %channel limited
 alloc %target %one
 zero %target limited
-call %consumer task_new 4 %one %scheduler %channel %target
+call %consumer task_new 4 %consumer_resume %scheduler %channel %target
 zero %consumer limited
-call %producer task_new 4 %two %scheduler %channel %zero
+call %producer task_new 4 %producer_resume %scheduler %channel %zero
 zero %producer limited
 call %status scheduler_enqueue 2 %scheduler %consumer
 zero %status invalid

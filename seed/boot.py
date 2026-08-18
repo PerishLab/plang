@@ -202,6 +202,21 @@ def emit_func(path, data, functions, func):
             store(out, slots, ptr, "x9")
             out.extend(immediate("x9", len(data[key])))
             store(out, slots, size, "x9")
+        elif op == "funcptr":
+            exact(path, line, parts, 3)
+            dst = register(path, line, parts[1])
+            function = named(path, line, parts[2])
+            if function not in functions:
+                fail(path, line, f"unknown function: {function}")
+            if function == "main":
+                fail(path, line, "main cannot be used as a function value")
+            out.extend(
+                [
+                    f"    adrp x9, _pir_{function}@PAGE",
+                    f"    add x9, x9, _pir_{function}@PAGEOFF",
+                ]
+            )
+            store(out, slots, dst, "x9")
         elif op in binary or op in compare:
             exact(path, line, parts, 4)
             dst, left, right = (register(path, line, value) for value in parts[1:])
@@ -254,20 +269,30 @@ def emit_func(path, data, functions, func):
             load(out, slots, value, "x0")
             out.append(f"    bl _plang_{op}")
             store(out, slots, dst, "x0")
-        elif op == "call":
+        elif op in ("call", "invoke"):
             if len(parts) < 4:
-                fail(path, line, "call requires destination, function, and arity")
+                fail(path, line, f"{op} requires destination, function, and arity")
             dst = register(path, line, parts[1])
-            callee = named(path, line, parts[2])
-            if callee not in functions:
-                fail(path, line, f"unknown function: {callee}")
+            callee = parts[2]
+            if op == "call":
+                named(path, line, callee)
+                if callee not in functions:
+                    fail(path, line, f"unknown function: {callee}")
+            else:
+                register(path, line, callee)
             arity = number(path, line, parts[3])
             args = [register(path, line, value) for value in parts[4:]]
-            if arity != len(args) or arity != functions[callee]:
+            if arity != len(args):
+                fail(path, line, f"{op} arity mismatch for {callee}")
+            if op == "call" and arity != functions[callee]:
                 fail(path, line, f"call arity mismatch for {callee}")
             for index, reg in enumerate(args):
                 load(out, slots, reg, f"x{index}")
-            out.append(f"    bl _pir_{callee}")
+            if op == "call":
+                out.append(f"    bl _pir_{callee}")
+            else:
+                load(out, slots, callee, "x9")
+                out.append("    blr x9")
             store(out, slots, dst, "x0")
         elif op == "label":
             out.append(f"L_{name}_{parts[1]}:")
