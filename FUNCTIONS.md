@@ -30,3 +30,23 @@ fault. The future surface `func` type must carry a checked signature, and a
 closure will additionally pair code with captured state. Those facilities
 should lower to this code-pointer primitive rather than enlarging the platform
 ABI now.
+
+`seed/closure.pir` proves the minimal captured form without a new opcode:
+
+```text
+closure = { code, context }
+invoke result code N+1 context arguments...
+```
+
+Both words are ordinary u64 values in a caller-owned 16-byte descriptor. The
+context is also caller-owned; copying a closure copies a borrowed pointer and
+does not clone or extend the context lifetime. The fixture captures 40, copies
+the descriptor, mutates the original context to 41, then invokes the copy and
+observes 41 through an env-first arity-two function. Three aligned records
+consume 48 bytes of a 4 KiB arena; an exact 4048-byte remainder succeeds and the
+next allocation fails explicitly.
+
+This representation is also the lower bound for an object method without
+inheritance: the object address is `context`, and the selected method is
+`code`. Surface ownership, capture-by-value, checked signatures, and method
+lookup remain semantic layers above the same two-word calling shape.
