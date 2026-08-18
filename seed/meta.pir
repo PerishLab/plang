@@ -943,6 +943,30 @@ label candidate_done
 eq %test %chosen %unknown
 nonzero %test invalid
 call %current seat 3 %records %chosen %record_size
+u64 %offset 376
+load64 %markers %current %offset
+nonzero %markers plan_active
+u64 %offset 384
+load64 %value %current %offset
+nonzero %value plan_active
+u64 %index 0
+label plan_active_extension
+eq %test %index %rule_count
+nonzero %test plan_inactive
+call %other seat 3 %rules %index %rule_size
+u64 %offset 64
+load64 %value %other %offset
+ne %test %value %chosen
+nonzero %test plan_active_extension_next
+u64 %offset 120
+load64 %value %other %offset
+nonzero %value plan_active
+label plan_active_extension_next
+add %index %index %one
+jump plan_active_extension
+label plan_inactive
+jump plan_settle
+label plan_active
 add %value %work %current_bound
 le %test %work %value
 zero %test invalid
@@ -950,8 +974,6 @@ le %test %value %work_budget
 zero %test invalid
 u64 %work 0
 add %work %work %value
-u64 %offset 376
-load64 %markers %current %offset
 u64 %offset 288
 load64 %value %current %offset
 mul %other_index %markers %value
@@ -1028,6 +1050,7 @@ u64 %offset 272
 load64 %length %current %offset
 call %value emit 2 %target %length
 zero %value invalid
+label plan_settle
 u64 %offset 368
 store64 %current %offset %one
 u64 %offset 360

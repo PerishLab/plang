@@ -13,7 +13,6 @@ run_work=$(mktemp -d)
 trap 'rm -rf "$run_work"' EXIT
 
 "$meta" 3< "$input" < "$manifest" > "$run_work/order"
-test -s "$run_work/order"
 
 run_chain() {
     if IFS= read -r name <&3; then

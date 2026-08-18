@@ -75,8 +75,17 @@ next tokens               += sum(auxiliary constant/affine outputs)
 next tokens               -= owned extension count * extension input framing
 next tokens               += sum(owned extension constant/affine outputs)
 next emitted-marker count += marker count * emission multiplicity
-compile work               += current tokens before each pass
+compile work               += current tokens before each launched pass
 ```
+
+An atom executable is launched only when its primary, auxiliary, or owned
+extension marker count is nonzero at the moment its topological node is
+settled. A zero-use node still releases its graph edge but neither changes the
+token bound nor consumes compile work. This is safe under the manifest algebra:
+all output and emission terms are marker-count driven. An upstream producer is
+settled first, so a consumer it activates is observed as nonzero and cannot be
+skipped. If every atom is unused, the platform adapter receives an empty plan
+and copies the input stream unchanged.
 
 Primary marker transfers are exact. During the same streaming census, an affine
 rule retains only a bounded operand countdown and accumulated output sum. For
@@ -99,10 +108,12 @@ The canonical manifest deliberately lists `async` before `collect`, but collect
 emits `@await.recv`, so the kernel derives:
 
 ```text
-send
 collect
 async
 ```
+
+`send` is also registered, but canonical `await.pir` contains no
+`@channel.send`, so its identity pass is settled without being launched.
 
 `seed/run-atoms.sh` presents the source on descriptor 3, obtains the proved
 order, then recursively constructs one Unix pipeline. Atom output is not
@@ -129,8 +140,9 @@ For canonical `await.pir`, the census sees 2658 source tokens, two
 `@stream.collect`, one source `@await.recv`, four `@async` frames, and three
 `@await.send` extension markers. Send leaves 2658 tokens unchanged, collect
 reaches 2816, and async reaches 3100, matching every materialized stage.
-Cumulative compiler work is 8132/8192, leaving 60 tokens without widening
-the budget. The isolated extension boundary accepts `6 -> 36` at
+Cumulative launched-pass work is 5474/8192: unused send is not charged, while
+collect's emitted marker still activates async after dependency propagation.
+The isolated extension boundary accepts `6 -> 36` at
 budget 36 and rejects budget 35. Unknown source markers still reach ordinary
 PIR1 lowering and are rejected there.
 

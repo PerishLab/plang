@@ -75,6 +75,8 @@ test "$(grep -c '^@stream.utf8$' "$work/utf8-stream-atom.source")" = 13
 test "$(wc -l < "$work/utf8-stream-atom.source")" -eq 769
 test "$(wc -l < "$work/utf8-stream-atom.once")" -eq 1210
 test "$(awk 'previous == "func" && $0 == "__utf8_stream_recv" { count++ } { previous = $0 } END { print count + 0 }' "$work/utf8-stream-atom.once")" = 1
+"$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms-with-utf8.manifest" "$work" "$work/utf8-stream-atom.source" "$work/utf8-stream-atom.planned"
+cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.planned"
 $work/lower < "$work/utf8-stream-atom.once" | $work/emit > "$work/utf8-stream-atom.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-stream-atom.s" -o "$work/utf8-stream-atom"
 test "$($work/utf8-stream-atom)" = "utf8 stream ok"
@@ -122,11 +124,15 @@ $work/lower < "$work/async-frames.tokens" | $work/emit > "$work/async-frames.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async-frames.s" -o "$work/async-frames"
 $work/async-frames
 
-test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "send
-collect
+test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
 async"
-test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-pure.manifest")" = "pure"
-test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-runtime-overlap.manifest")" = "left
+test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms-with-utf8.manifest")" = "collect
+async"
+test "$($work/meta 3< "$root/seed/pure.tokens" < "$root/seed/atoms-pure.manifest")" = "pure"
+test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-pure.manifest")" = ""
+"$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms-pure.manifest" "$work" "$root/seed/hello.tokens" "$work/hello.planned.tokens"
+cmp "$root/seed/hello.tokens" "$work/hello.planned.tokens"
+test "$($work/meta 3< "$root/seed/runtime-overlap.tokens" < "$root/seed/atoms-runtime-overlap.manifest")" = "left
 right"
 
 set +e
@@ -161,8 +167,12 @@ test "$status" = 1
 test "$error" = "plang0: atom manifest rejected"
 
 for manifest in "$root"/seed/atoms-invalid-*.manifest; do
+    source="$root/seed/hello.tokens"
+    case "$manifest" in
+        *atoms-invalid-work.manifest) source="$root/seed/work-overflow.tokens" ;;
+    esac
     set +e
-    error=$($work/meta 3< "$root/seed/hello.tokens" < "$manifest" 2>&1 > "$work/meta-invalid.order")
+    error=$($work/meta 3< "$source" < "$manifest" 2>&1 > "$work/meta-invalid.order")
     status=$?
     set -e
 
@@ -571,8 +581,7 @@ cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.self.tokens"
 
 $work/lex "$root/seed/meta.pir" | $work/lower | $work/emit > "$work/meta.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.self.s" -o "$work/meta.self"
-test "$($work/meta.self 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "send
-collect
+test "$($work/meta.self 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
 async"
 
 $work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"

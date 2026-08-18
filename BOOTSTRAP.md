@@ -122,7 +122,9 @@ See `SEND.md`.
 `seed/meta.pir` now derives that dependency order from the bounded atom
 manifest, proves primary framing plus constant/affine auxiliary/extension expansion/work,
 rejects unresolved emissions and cycles, and reaches its own byte-identical
-fixed point. A thin shell adapter
+fixed point. It settles zero-use atom nodes without launching their identity
+executables or charging compile work, while upstream emissions still activate
+dependent consumers before selection. A thin shell adapter
 remains the platform transport for starting the ordered streaming executables.
 See `META.md`.
 
