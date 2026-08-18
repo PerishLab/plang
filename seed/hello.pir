@@ -1,0 +1,14 @@
+memory 16777216
+bytes message "hello, plang\n"
+bytes limit "plang: memory limit\n"
+
+func main 0
+u64 %r8 64
+alloc %r16 %r8
+zero %r16 failed
+out message
+exit 0
+label failed
+err limit
+exit 1
+end
