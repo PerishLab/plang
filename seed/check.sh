@@ -208,6 +208,20 @@ scan=$($work/scan "$root/seed/hello.pir")
 test "$scan" = "scan ok"
 
 set +e
+error=$($work/scan 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: source path required"
+
+set +e
+error=$($work/scan "$work/missing.pir" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: source open failed"
+
+set +e
 error=$($work/scan "$root/seed/nonascii.txt" 2>&1)
 status=$?
 set -e
@@ -255,6 +269,18 @@ test "$($work/bitwise.self)" = "bitwise ok"
 $work/lex "$root/seed/scan.pir" | $work/lower | $work/emit > "$work/scan.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.self.s" -o "$work/scan.self"
 test "$($work/scan.self "$root/seed/hello.pir")" = "scan ok"
+set +e
+error=$($work/scan.self 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: source path required"
+set +e
+error=$($work/scan.self "$work/missing.pir" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: source open failed"
 
 set +e
 error=$($work/lower < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.lower.tokens")
@@ -317,6 +343,18 @@ test "$($work/bitwise.fixed)" = "bitwise ok"
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"
 test "$($work/scan.fixed "$root/seed/hello.pir")" = "scan ok"
+set +e
+error=$($work/scan.fixed 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: source path required"
+set +e
+error=$($work/scan.fixed "$work/missing.pir" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: source open failed"
 
 $work/lex "$root/seed/profile.pir" | $work/lower.self | $work/emit.self > "$work/profile.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.fixed.s" -o "$work/profile.fixed"
