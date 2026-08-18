@@ -10,13 +10,13 @@ The baseline after introducing per-program arenas is:
 | pass | source B | linked B | strip -x B | __TEXT VM B | __DATA VM B | arena B | fixed max B | headroom B |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | lex | 2,057 | 50,576 | 50,608 | 16,384 | 16,384 | 8,192 | 4,096 | 4,096 |
-| meta | 17,006 | 51,224 | 51,232 | 16,384 | 16,384 | 8,192 | 7,424 | 768 |
+| meta | 23,503 | 51,224 | 51,232 | 16,384 | 16,384 | 8,192 | 8,000 | 192 |
 | send | 2,820 | 50,792 | 50,800 | 16,384 | 16,384 | 8,192 | 4,288 | 3,904 |
 | collect | 7,327 | 50,888 | 50,896 | 16,384 | 16,384 | 8,192 | 4,416 | 3,776 |
-| async | 7,939 | 50,888 | 50,896 | 16,384 | 16,384 | 8,192 | 4,416 | 3,776 |
+| async | 9,740 | 50,888 | 50,896 | 16,384 | 16,384 | 8,192 | 4,416 | 3,776 |
 | lower | 9,281 | 51,128 | 51,136 | 16,384 | 16,384 | 8,192 | 6,208 | 1,984 |
 | emit | 20,689 | 50,744 | 50,768 | 16,384 | 49,152 | 32,768 | 20,480 | 12,288 |
-| total | 67,119 | 356,240 | 356,336 | — | — | 81,920 | 51,328 | 30,592 |
+| total | 75,417 | 356,240 | 356,336 | — | — | 81,920 | 51,904 | 30,016 |
 
 Before this measurement, every pass inherited a 16 MiB arena: 112 MiB of
 declared capacity across the seven executables. The new profiles total 80 KiB,
@@ -48,7 +48,7 @@ currently removable source duplication is:
 This is meaningful but not yet a reason to fuse semantic passes. Separate
 passes preserve local algebra, independent fixed points, and fault attribution.
 The compile-time budget proof now lives in `meta.pir`: source marker counts,
-exact primary framing, constant/affine auxiliary transfer, emission
+exact primary framing, constant/affine auxiliary and extension transfer, emission
 multiplicity, and cumulative token work can reject an unsafe plan before any
 atom pass starts.
 Runtime effect overlap is kept separate from compiler transform ordering.

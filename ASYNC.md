@@ -7,13 +7,14 @@ between the token-stream lexer and the ordinary PIR1 name-lowering pass:
 source -> lex -> async -> lower -> emit -> arm64 Darwin assembly
 ```
 
-The pass recognizes three locally framed markers and copies every other token
+The pass recognizes four locally framed markers and copies every other token
 unchanged:
 
 ```text
 @async TASK PC_OFFSET STATE_COUNT
 @state STATE
 @await.recv STATUS CHANNEL TARGET TASK RESUME_STATE
+@await.send STATUS CHANNEL VALUE TASK RESUME_STATE
 ```
 
 `@async` loads the task program counter and emits a bounded dispatch to one of
@@ -22,6 +23,12 @@ the function-local state labels. `@state` materializes one such label.
 continues immediately; a pending result registers the task as a channel waiter
 and returns zero to the scheduler. Failed waiter registration replaces
 `STATUS` with the explicit failure status `3` and falls through to the caller.
+
+`@await.send` is the symmetric writer policy. It stores the resume state, calls
+the synchronous `channel_send`, and falls through immediately for accepted or
+terminal status. On full status it registers the task through
+`channel_write_wait` and returns zero; registration failure becomes explicit
+status `3`. Receive and send sites share one bounded function-local namespace.
 
 The atom's dependencies and observable effects are deliberately narrow:
 
@@ -54,7 +61,7 @@ For the token-stream transform `A`, the executable algebra currently promises:
 identity     A(x) = x                         when x contains no async markers
 idempotence  A(A(x)) = A(x)                  because lowering removes all markers
 frame reset  each @async resets its await-site namespace to zero
-expansion    @async(S) -> 15 + 10S tokens; @state -> 2; @await.recv -> 36
+expansion    @async(S) -> 15 + 10S tokens; @state -> 2; both await forms -> 36
 ```
 
 The expansion formula gives a closed output bound before lowering starts. With

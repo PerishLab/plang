@@ -2,6 +2,7 @@ memory 8192
 bytes asyncword "@async"
 bytes stateword "@state"
 bytes awaitword "@await.recv"
+bytes sendawaitword "@await.send"
 bytes numbers "0\n1\n2\n3\n4\n5\n6\n7\n"
 bytes states "__async_state_0\n__async_state_1\n__async_state_2\n__async_state_3\n__async_state_4\n__async_state_5\n__async_state_6\n__async_state_7\n"
 bytes ready "__async_ready_0\n__async_ready_1\n__async_ready_2\n__async_ready_3\n__async_ready_4\n__async_ready_5\n__async_ready_6\n__async_ready_7\n"
@@ -23,6 +24,8 @@ bytes await_g "nonzero\n%__async_test\n"
 bytes await_h "u64\n"
 bytes await_i "3\njump\n"
 bytes await_j "ret\n%__async_zero\nlabel\n"
+bytes send_d "channel_send\n2\n"
+bytes send_f "call\n%__async_test\nchannel_write_wait\n2\n"
 bytes newline "\n"
 bytes limited "plang0: memory limit\n"
 bytes invalid "plang0: async lowering rejected token stream\n"
@@ -244,6 +247,9 @@ nonzero %test state
 data %word %wordlen awaitword
 call %test same 4 %buffer %length %word %wordlen
 nonzero %test await
+data %word %wordlen sendawaitword
+call %test same 4 %buffer %length %word %wordlen
+nonzero %test sendawait
 call %wrote emit 2 %buffer %length
 jump token
 label async
@@ -336,6 +342,65 @@ data %table %tablesize ready
 call %test item 3 %await_index %table %tablesize
 zero %test invalid
 out await_f
+call %wrote emit 2 %b %blen
+call %wrote emit 2 %d %dlen
+out await_g
+data %table %tablesize waiting
+call %test item 3 %await_index %table %tablesize
+zero %test invalid
+out await_h
+call %wrote emit 2 %a %alen
+out await_i
+data %table %tablesize ready
+call %test item 3 %await_index %table %tablesize
+zero %test invalid
+out labelword
+data %table %tablesize waiting
+call %test item 3 %await_index %table %tablesize
+zero %test invalid
+out await_j
+data %table %tablesize ready
+call %test item 3 %await_index %table %tablesize
+zero %test invalid
+add %await_index %await_index %one
+jump token
+label sendawait
+call %alen nextcopy 4 %buffer %capacity %a %small
+call %blen nextcopy 4 %buffer %capacity %b %small
+call %clen nextcopy 4 %buffer %capacity %c %small
+call %dlen nextcopy 4 %buffer %capacity %d %small
+call %elen nextcopy 4 %buffer %capacity %e %small
+zero %alen invalid
+zero %blen invalid
+zero %clen invalid
+zero %dlen invalid
+zero %elen invalid
+ne %test %elen %one
+nonzero %test invalid
+call %value decimal 2 %e %elen
+eq %test %value %unknown
+nonzero %test invalid
+le %test %state_count %value
+nonzero %test invalid
+le %test %limit %await_index
+nonzero %test invalid
+out await_a
+data %table %tablesize numbers
+call %test item 3 %value %table %tablesize
+zero %test invalid
+out await_b
+call %wrote emit 2 %d %dlen
+out await_c
+call %wrote emit 2 %a %alen
+out send_d
+call %wrote emit 2 %b %blen
+call %wrote emit 2 %c %clen
+out await_e
+call %wrote emit 2 %a %alen
+data %table %tablesize ready
+call %test item 3 %await_index %table %tablesize
+zero %test invalid
+out send_f
 call %wrote emit 2 %b %blen
 call %wrote emit 2 %d %dlen
 out await_g

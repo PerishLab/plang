@@ -24,6 +24,15 @@ AUX_SCALE
 AUX_OPERAND_OFFSET
 EXECUTABLE
 ... repeated ATOM_COUNT times
+EXTENSION_RULE_COUNT
+OWNER_ATOM_INDEX
+MARKER
+INPUT_TOKENS
+MODE_C_OR_A
+BASE
+SCALE
+OPERAND_OFFSET
+... repeated EXTENSION_RULE_COUNT times
 ```
 
 The seed admits one through eight atoms. Text fields are nonempty and at most
@@ -36,13 +45,17 @@ consumed by the same pass but not participating in graph edges. Its mode is
 `c` for constant output `BASE`, or `a` for affine output
 `BASE + SCALE * canonical_decimal_operand[OFFSET]`. Constant rules require zero
 scale and offset; affine rules require both to be positive. `WORK_BUDGET` is
-1..65535.
+1..65535. Up to four extension rules reuse the same constant/affine algebra and
+attach to an atom by zero-based manifest index. They exist for a real third or
+later structural marker without copying empty rule slots into every atom.
 
 For each emitted marker, exactly one atom must consume it. Duplicate consumers,
 unresolved emissions, and cycles are rejected. A bounded Kahn sort chooses the
 first ready atom in manifest order, giving a deterministic plan. The registry
-uses at most eight 408-byte records; together with the input window and operand
-seat, fixed allocation is 7424 bytes inside the 8 KiB arena.
+uses at most eight 408-byte records plus four 144-byte extension records;
+together with the input window and operand seat, fixed allocation is 8000 bytes
+inside the 8 KiB arena, leaving 192 bytes. The planner main function uses the
+existing PIR1 ceiling of 30 virtual registers; neither backend bound was widened.
 
 The source census retains only token and marker counters. In topological order,
 the planner applies each atom's declared bounded transfer:
@@ -54,6 +67,8 @@ next tokens = current tokens
 
 next tokens               -= auxiliary count * auxiliary input framing
 next tokens               += sum(auxiliary constant/affine outputs)
+next tokens               -= owned extension count * extension input framing
+next tokens               += sum(owned extension constant/affine outputs)
 next emitted-marker count += marker count * emission multiplicity
 compile work               += current tokens before each pass
 ```
@@ -98,19 +113,18 @@ send -> async                  == async -> send
 send -> collect                == collect -> send
 overlapping runtime writes     != compiler-pass conflict
 duplicate/unresolved/cycle     -> rejected
-duplicate primary/aux marker   -> rejected
+duplicate marker across every rule class -> rejected
 framing or emission mismatch   -> rejected
 invalid/incomplete affine rule -> rejected
 compile work/token overflow    -> rejected before pass launch
 meta.pir rebuilt output        == byte-identical fixed point
 ```
 
-For canonical `await.pir`, the census sees 2657 source tokens, three
-`@channel.send`, two `@stream.collect`, one source `@await.recv`, and four
-`@async` frames. The exact plan reaches 2663 tokens after send, 2821 after
-collect, and 3015 after async, matching every materialized stage. Cumulative
-compiler work is 8141, leaving 51 tokens under the explicit 8192 budget. The
-tight boundary is useful pressure: the hand-lowered writer suspension baseline
-must become a smaller `@await.send` marker rather than silently widening the
-budget. Unknown source markers
-still reach ordinary PIR1 lowering and are rejected there.
+For canonical `await.pir`, the census sees 2591 source tokens, two
+`@stream.collect`, one source `@await.recv`, four `@async` frames, and three
+`@await.send` extension markers. Send leaves 2591 tokens unchanged, collect
+reaches 2749, and async reaches 3033, matching every materialized stage.
+Cumulative compiler work is 7931/8192, restoring 261 tokens of headroom without
+widening the budget. The isolated extension boundary accepts `6 -> 36` at
+budget 36 and rejects budget 35. Unknown source markers still reach ordinary
+PIR1 lowering and are rejected there.

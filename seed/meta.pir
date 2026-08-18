@@ -341,6 +341,7 @@ u64 %unknown 255
 u64 %capacity 4096
 u64 %small 64
 u64 %record_size 408
+u64 %rule_size 144
 u64 %fd 0
 alloc %buffer %capacity
 alloc %a %small
@@ -482,6 +483,96 @@ store64 %current %offset %zero
 add %index %index %one
 jump record
 label records_done
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %rule_count emission 2 %a %length
+eq %test %rule_count %unknown
+nonzero %test invalid
+u64 %value 4
+le %test %rule_count %value
+zero %test invalid
+u64 %length 576
+alloc %rules %length
+zero %rules limited
+u64 %index 0
+label extension_record
+eq %test %index %rule_count
+nonzero %test extension_records_done
+call %other seat 3 %rules %index %rule_size
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value emission 2 %a %length
+eq %test %value %unknown
+nonzero %test invalid
+le %test %count %value
+nonzero %test invalid
+u64 %offset 64
+store64 %other %offset %value
+call %length nextcopy 4 %buffer %capacity %other %small
+zero %length invalid
+u64 %offset 72
+store64 %other %offset %length
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value expansion 2 %a %length
+zero %value invalid
+u64 %offset 80
+store64 %other %offset %value
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value mode 2 %a %length
+eq %test %value %unknown
+nonzero %test invalid
+u64 %offset 88
+store64 %other %offset %value
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value natural 2 %a %length
+eq %test %value %unknown
+nonzero %test invalid
+u64 %offset 96
+store64 %other %offset %value
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value natural 2 %a %length
+eq %test %value %unknown
+nonzero %test invalid
+u64 %offset 104
+store64 %other %offset %value
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value emission 2 %a %length
+eq %test %value %unknown
+nonzero %test invalid
+u64 %offset 112
+store64 %other %offset %value
+u64 %offset 88
+load64 %value %other %offset
+nonzero %value extension_affine
+u64 %offset 104
+load64 %value %other %offset
+nonzero %value invalid
+u64 %offset 112
+load64 %value %other %offset
+nonzero %value invalid
+jump extension_rule_done
+label extension_affine
+u64 %offset 104
+load64 %value %other %offset
+zero %value invalid
+u64 %offset 112
+load64 %value %other %offset
+zero %value invalid
+label extension_rule_done
+u64 %offset 120
+store64 %other %offset %zero
+u64 %offset 128
+store64 %other %offset %zero
+u64 %offset 136
+store64 %other %offset %zero
+add %index %index %one
+jump extension_record
+label extension_records_done
 call %length next 3 %fd %buffer %capacity
 nonzero %length invalid
 u64 %index 0
@@ -508,7 +599,7 @@ label aux_unique
 u64 %index 0
 label aux_rule
 eq %test %index %count
-nonzero %test edges
+nonzero %test extension_unique
 call %current seat 3 %records %index %record_size
 u64 %offset 192
 add %target %current %offset
@@ -544,6 +635,53 @@ jump aux_other
 label aux_rule_next
 add %index %index %one
 jump aux_rule
+label extension_unique
+u64 %index 0
+label extension_rule_unique
+eq %test %index %rule_count
+nonzero %test edges
+call %other seat 3 %rules %index %rule_size
+u64 %offset 72
+load64 %length %other %offset
+data %a %small dash
+call %test same 4 %other %length %a %small
+nonzero %test invalid
+u64 %other_index 0
+label extension_atom_unique
+eq %test %other_index %count
+nonzero %test extension_peer_unique
+call %current seat 3 %records %other_index %record_size
+u64 %offset 256
+load64 %value %current %offset
+call %test same 4 %other %length %current %value
+nonzero %test invalid
+u64 %offset 192
+add %target %current %offset
+u64 %offset 280
+load64 %value %current %offset
+data %a %small dash
+call %test same 4 %target %value %a %small
+nonzero %test extension_atom_next
+call %test same 4 %other %length %target %value
+nonzero %test invalid
+label extension_atom_next
+add %other_index %other_index %one
+jump extension_atom_unique
+label extension_peer_unique
+add %other_index %index %one
+label extension_peer
+eq %test %other_index %rule_count
+nonzero %test extension_rule_next
+call %current seat 3 %rules %other_index %rule_size
+u64 %offset 72
+load64 %value %current %offset
+call %test same 4 %other %length %current %value
+nonzero %test invalid
+add %other_index %other_index %one
+jump extension_peer
+label extension_rule_next
+add %index %index %one
+jump extension_rule_unique
 label edges
 u64 %index 0
 label edge
@@ -605,7 +743,7 @@ zero %test invalid
 u64 %index 0
 label census_atom
 eq %test %index %count
-nonzero %test census
+nonzero %test census_extension_open
 call %current seat 3 %records %index %record_size
 u64 %offset 400
 load64 %value %current %offset
@@ -680,18 +818,94 @@ store64 %current %offset %value
 label census_next
 add %index %index %one
 jump census_atom
+label census_extension_open
+u64 %index 0
+label census_extension
+eq %test %index %rule_count
+nonzero %test census
+call %other seat 3 %rules %index %rule_size
+u64 %offset 136
+load64 %value %other %offset
+zero %value census_extension_match
+sub %value %value %one
+store64 %other %offset %value
+nonzero %value census_extension_match
+call %value natural 2 %buffer %length
+eq %test %value %unknown
+nonzero %test invalid
+u64 %offset 104
+load64 %other_index %other %offset
+mul %value %value %other_index
+u64 %offset 96
+load64 %other_index %other %offset
+add %value %value %other_index
+le %test %other_index %value
+zero %test invalid
+u64 %offset 128
+load64 %other_index %other %offset
+add %value %value %other_index
+le %test %other_index %value
+zero %test invalid
+le %test %value %work_budget
+zero %test invalid
+store64 %other %offset %value
+label census_extension_match
+u64 %offset 72
+load64 %value %other %offset
+call %test same 4 %buffer %length %other %value
+zero %test census_extension_next
+u64 %offset 120
+load64 %value %other %offset
+add %value %value %one
+store64 %other %offset %value
+u64 %offset 88
+load64 %value %other %offset
+nonzero %value census_extension_affine
+u64 %offset 96
+load64 %value %other %offset
+u64 %offset 128
+load64 %other_index %other %offset
+add %value %value %other_index
+le %test %other_index %value
+zero %test invalid
+le %test %value %work_budget
+zero %test invalid
+store64 %other %offset %value
+jump census_extension_next
+label census_extension_affine
+u64 %offset 136
+load64 %value %other %offset
+nonzero %value invalid
+u64 %offset 112
+load64 %value %other %offset
+u64 %offset 136
+store64 %other %offset %value
+label census_extension_next
+add %index %index %one
+jump census_extension
 label census_done
 zero %source_tokens invalid
 u64 %index 0
 label pending_check
 eq %test %index %count
-nonzero %test sort
+nonzero %test extension_pending_open
 call %current seat 3 %records %index %record_size
 u64 %offset 400
 load64 %value %current %offset
 nonzero %value invalid
 add %index %index %one
 jump pending_check
+label extension_pending_open
+u64 %index 0
+label extension_pending
+eq %test %index %rule_count
+nonzero %test sort
+call %other seat 3 %rules %index %rule_size
+u64 %offset 136
+load64 %value %other %offset
+nonzero %value invalid
+add %index %index %one
+jump extension_pending
 label sort
 u64 %step 0
 u64 %work 0
@@ -760,6 +974,34 @@ le %test %value %length
 zero %test invalid
 u64 %value 0
 add %value %value %length
+u64 %index 0
+label plan_extension
+eq %test %index %rule_count
+nonzero %test plan_extension_done
+call %other seat 3 %rules %index %rule_size
+u64 %offset 64
+load64 %length %other %offset
+ne %test %length %chosen
+nonzero %test plan_extension_next
+u64 %offset 120
+load64 %length %other %offset
+u64 %offset 80
+load64 %other_index %other %offset
+mul %other_index %length %other_index
+le %test %other_index %value
+zero %test invalid
+sub %value %value %other_index
+u64 %offset 128
+load64 %length %other %offset
+add %length %value %length
+le %test %value %length
+zero %test invalid
+u64 %value 0
+add %value %value %length
+label plan_extension_next
+add %index %index %one
+jump plan_extension
+label plan_extension_done
 le %test %value %work_budget
 zero %test invalid
 u64 %current_bound 0

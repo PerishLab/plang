@@ -598,47 +598,25 @@ arg %task 0
 u64 %zero 0
 u64 %one 1
 u64 %failed 3
-u64 %pc_at 8
 u64 %channel_at 24
 u64 %done_at 40
 load64 %channel %task %channel_at
 @async %task 8 3
 @state 0
 u64 %value 65
-u64 %resume 0
-@channel.send %status %channel %value
-eq %test %status %one
-nonzero %test send_b
-nonzero %status bad
-store64 %task %pc_at %resume
-call %status channel_write_wait 2 %channel %task
-zero %status bad
-ret %zero
-label send_b
+@await.send %status %channel %value %task 0
+ne %test %status %one
+nonzero %test bad
 @state 1
 u64 %value 66
-u64 %resume 1
-@channel.send %status %channel %value
-eq %test %status %one
-nonzero %test send_c
-nonzero %status bad
-store64 %task %pc_at %resume
-call %status channel_write_wait 2 %channel %task
-zero %status bad
-ret %zero
-label send_c
+@await.send %status %channel %value %task 1
+ne %test %status %one
+nonzero %test bad
 @state 2
 u64 %value 67
-u64 %resume 2
-@channel.send %status %channel %value
-eq %test %status %one
-nonzero %test close
-nonzero %status bad
-store64 %task %pc_at %resume
-call %status channel_write_wait 2 %channel %task
-zero %status bad
-ret %zero
-label close
+@await.send %status %channel %value %task 2
+ne %test %status %one
+nonzero %test bad
 call %status channel_close 1 %channel
 zero %status bad
 store64 %task %done_at %one

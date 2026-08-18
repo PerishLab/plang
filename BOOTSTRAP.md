@@ -77,7 +77,7 @@ that runtime READS/WRITES and compiler transform dependencies are distinct.
 See `SEND.md`.
 
 `seed/meta.pir` now derives that dependency order from the bounded atom
-manifest, proves primary framing plus constant/affine auxiliary expansion/work,
+manifest, proves primary framing plus constant/affine auxiliary/extension expansion/work,
 rejects unresolved emissions and cycles, and reaches its own byte-identical
 fixed point. A thin shell adapter
 remains the platform transport for starting the ordered streaming executables.

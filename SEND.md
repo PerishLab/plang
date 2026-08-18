@@ -14,8 +14,9 @@ call STATUS channel_send 2 CHANNEL VALUE
 
 The channel ABI remains explicit. `STATUS` is `0` for full/backpressure, `1`
 for accepted, and `2` when a closed or failed channel rejects the value. The
-atom neither waits nor retries; an asynchronous send policy would be a distinct
-atom with its own suspension contract.
+atom neither waits nor retries. `@await.send` is the distinct asynchronous
+policy layered above it; it lives in the async pass and has its own suspension
+contract.
 
 The pass has no site table and imposes no hidden per-function marker limit. It
 retains one 4 KiB token window and three 64-byte operands, so source size and the

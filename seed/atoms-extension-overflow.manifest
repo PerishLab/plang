@@ -1,5 +1,5 @@
 1
-8192
+35
 async
 @await.recv
 -
@@ -12,7 +12,14 @@ channel+target+task
 4
 a
 15
-0
+10
 3
 async
+1
+0
+@await.send
+6
+c
+36
+0
 0
