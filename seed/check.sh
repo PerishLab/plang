@@ -18,6 +18,7 @@ python3 "$root/seed/boot.py" "$root/seed/meta.pir" "$work/meta.s"
 python3 "$root/seed/boot.py" "$root/seed/send.pir" "$work/send.s"
 python3 "$root/seed/boot.py" "$root/seed/collect.pir" "$work/collect.s"
 python3 "$root/seed/boot.py" "$root/seed/async.pir" "$work/async.s"
+python3 "$root/seed/boot.py" "$root/seed/borrow.pir" "$work/borrow.s"
 python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
 python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
@@ -43,6 +44,7 @@ python3 "$root/seed/boot.py" "$root/seed/utf8-literal.pir" "$work/utf8-literal.s
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/send.s" -o "$work/send"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect.s" -o "$work/collect"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.s" -o "$work/async"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/borrow.s" -o "$work/borrow"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
@@ -136,6 +138,39 @@ test "$(grep -c '^__async_waiting_0$' "$work/async-frames.tokens")" = 4
 $work/lower < "$work/async-frames.tokens" | $work/emit > "$work/async-frames.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async-frames.s" -o "$work/async-frames"
 $work/async-frames
+
+$work/lex "$root/seed/borrow-await.pir" > "$work/borrow-await.source"
+$work/borrow < "$work/borrow-await.source" > "$work/borrow-await.once"
+$work/borrow < "$work/borrow-await.once" > "$work/borrow-await.twice"
+cmp "$work/borrow-await.once" "$work/borrow-await.twice"
+test "$(grep -c '^@borrow.mut$' "$work/borrow-await.once")" = 0
+test "$(grep -c '^@borrow.end$' "$work/borrow-await.once")" = 0
+test "$(grep -c '^@borrow.await.recv$' "$work/borrow-await.once")" = 0
+test "$(grep -c '^@await.recv$' "$work/borrow-await.once")" = 2
+test "$($work/meta 3< "$work/borrow-await.source" < \
+    "$root/seed/atoms.manifest")" = "borrow
+async"
+"$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" \
+    "$work" "$work/borrow-await.source" "$work/borrow-await.planned"
+$work/async < "$work/borrow-await.once" > "$work/borrow-await.manual"
+cmp "$work/borrow-await.manual" "$work/borrow-await.planned"
+$work/lower < "$work/borrow-await.planned" |
+    $work/emit > "$work/borrow-await.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" \
+    "$work/borrow-await.s" -o "$work/borrow-await"
+$work/borrow-await
+
+for source in "$root"/seed/borrow-invalid-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    set +e
+    $work/lex "$source" | $work/borrow > "$work/$name.tokens" 2> "$work/$name.error"
+    status=$?
+    set -e
+    test "$status" = 1
+    test "$(cat "$work/$name.error")" = \
+        "plang0: borrow lowering rejected token stream"
+done
 
 test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
 async"
@@ -601,6 +636,11 @@ test "$(cat "$work/invalid.register.self.error")" = "plang0: lowering rejected t
 $work/lex "$root/seed/async.pir" | $work/lower | $work/emit > "$work/async.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.self.s" -o "$work/async.self"
 
+$work/lex "$root/seed/borrow.pir" | $work/lower | $work/emit > "$work/borrow.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/borrow.self.s" -o "$work/borrow.self"
+$work/borrow.self < "$work/borrow-await.source" > "$work/borrow-await.self.tokens"
+cmp "$work/borrow-await.once" "$work/borrow-await.self.tokens"
+
 $work/lex "$root/seed/collect.pir" | $work/lower | $work/emit > "$work/collect.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect.self.s" -o "$work/collect.self"
 
@@ -632,6 +672,11 @@ $work/lex "$root/seed/lower.pir" | $work/lower.self | $work/emit.self > "$work/l
 cmp "$work/lower.self.s" "$work/lower.fixed.s"
 $work/lex "$root/seed/async.pir" | $work/lower.self | $work/emit.self > "$work/async.fixed.s"
 cmp "$work/async.self.s" "$work/async.fixed.s"
+$work/lex "$root/seed/borrow.pir" | $work/lower.self | $work/emit.self > "$work/borrow.fixed.s"
+cmp "$work/borrow.self.s" "$work/borrow.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/borrow.fixed.s" -o "$work/borrow.fixed"
+$work/borrow.fixed < "$work/borrow-await.source" > "$work/borrow-await.fixed.tokens"
+cmp "$work/borrow-await.once" "$work/borrow-await.fixed.tokens"
 $work/lex "$root/seed/collect.pir" | $work/lower.self | $work/emit.self > "$work/collect.fixed.s"
 cmp "$work/collect.self.s" "$work/collect.fixed.s"
 $work/lex "$root/seed/send.pir" | $work/lower.self | $work/emit.self > "$work/send.fixed.s"

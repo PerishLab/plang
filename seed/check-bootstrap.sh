@@ -12,7 +12,7 @@ fi
 
 sh "$root/seed/bootstrap.sh" "$work/out"
 
-for unit in lex meta send collect async utf8-pass lower emit; do
+for unit in lex meta send collect async borrow utf8-pass lower emit; do
     test -x "$work/out/$unit"
     test -s "$work/out/assembly/$unit.s"
 done
@@ -25,6 +25,8 @@ done
 test "$("$work/out/hello")" = "hello, plang"
 test "$("$work/out/await")" = "ABCawait ok
 ABCcollect ok"
+test -x "$work/out/borrow-example"
+"$work/out/borrow-example"
 test "$("$work/out/utf8-stream")" = "utf8 stream ok"
 
 "$root/seed/compose.sh" "$work/out/lex" "$root/seed/compose.manifest" \

@@ -5,7 +5,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 report_work=$(mktemp -d)
 trap 'rm -rf "$report_work"' EXIT
 
-units="lex meta send collect async utf8-pass lower emit"
+units="lex meta send collect async borrow utf8-pass lower emit"
 resources="$root/seed/resources.manifest"
 total_source=0
 total_linked=0
@@ -65,14 +65,15 @@ printf '%s\n' '| identical helper | copies | one copy B | removable duplicate B 
 printf '%s\n' '|---|---:|---:|---:|'
 
 for spec in \
-    'next meta send collect async lower' \
-    'same meta send collect async lower' \
+    'next meta send collect async borrow utf8-pass lower' \
+    'same meta send collect async borrow utf8-pass lower' \
     'decimal meta collect async lower' \
-    'put meta send collect async lower' \
-    'emit meta send collect async lower' \
-    'copy meta send collect async lower' \
-    'nextcopy meta send collect async' \
-    'item collect async'
+    'put meta send collect async borrow utf8-pass lower' \
+    'emit meta send collect async borrow utf8-pass lower' \
+    'copy meta send collect async borrow utf8-pass lower' \
+    'nextcopy meta send collect async borrow utf8-pass' \
+    'item collect async' \
+    'seat meta borrow'
 do
     set -- $spec
     helper=$1
@@ -109,6 +110,8 @@ printf '%s\n' '- `@async(S)`: `15 + 10S` tokens, `1 <= S <= 8`'
 printf '%s\n' '- `@state`: `2` tokens'
 printf '%s\n' '- `@await.recv`: `36` tokens, at most `8` sites'
 printf '%s\n' '- `@await.send`: `36` tokens, shares the `8`-site frame limit'
+printf '%s\n' '- `@borrow.mut` / `@borrow.end`: `2 -> 0` tokens, at most `8` nested mutable borrows'
+printf '%s\n' '- `@borrow.await.recv`: `6 -> 6` tokens, rejected while any mutable borrow is live'
 printf '%s\n' '- `@stream.collect`: `85` tokens, at most `8` sites'
 printf '%s\n' '- `@channel.send`: `4 -> 6` tokens per site'
 printf '%s\n' '- `@stream.utf8`: `4 -> 6` tokens per site plus one 415-token helper closure'

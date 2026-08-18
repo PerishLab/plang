@@ -9,7 +9,7 @@ trap 'rm -rf "$work"' EXIT
 
 seed="$root/seed/bootstrap/arm64-darwin"
 runtime="$root/seed/arm64-darwin.s"
-units="lex meta send collect async utf8-pass lower emit"
+units="lex meta send collect async borrow utf8-pass lower emit"
 
 cd "$root"
 shasum -a 256 -c "$seed/SHA256SUMS"
@@ -47,6 +47,14 @@ test "$("$work/hello")" = "hello, plang"
 test "$("$work/await")" = "ABCawait ok
 ABCcollect ok"
 
+"$work/lex.1" "$root/seed/borrow-await.pir" > "$work/borrow.source.tokens"
+"$root/seed/run-atoms.sh" "$work/meta.1" "$root/seed/atoms.manifest" \
+    "$work" "$work/borrow.source.tokens" "$work/borrow.tokens" .1
+"$work/lower.1" < "$work/borrow.tokens" |
+    "$work/emit.1" > "$work/borrow.s"
+/usr/bin/clang -arch arm64 "$runtime" "$work/borrow.s" -o "$work/borrow-example"
+"$work/borrow-example"
+
 "$work/lex.1" "$root/seed/utf8-stream-atom.pir" > "$work/utf8.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta.1" "$root/seed/atoms-with-utf8.manifest" \
     "$work" "$work/utf8.source.tokens" "$work/utf8.tokens" .1
@@ -62,6 +70,7 @@ for unit in $units; do
 done
 cp "$work/hello" "$output/hello"
 cp "$work/await" "$output/await"
+cp "$work/borrow-example" "$output/borrow-example"
 cp "$work/utf8" "$output/utf8-stream"
 
 printf '%s\n' "bootstrap ok: $output"

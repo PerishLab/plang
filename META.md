@@ -104,11 +104,20 @@ compiler dependency or rejection. Compiler ordering is derived only from
 marker production and consumption; runtime effects remain structured input for
 future scheduling and race analysis.
 
-The canonical manifest deliberately lists `async` before `collect`, but collect
-emits `@await.recv`, so the kernel derives:
+The canonical manifest includes a borrow checker that emits `@await.recv`, and
+deliberately lists `async` before `collect`, even though collect emits the same
+marker. The kernel therefore derives only the active edges. For ordinary
+`await.pir`:
 
 ```text
 collect
+async
+```
+
+For `borrow-await.pir`, the active plan is instead:
+
+```text
+borrow
 async
 ```
 
@@ -153,3 +162,8 @@ site transfers to a six-token call plus the 415-token shared closure, so budget
 closure, so 418 is accepted and 417 rejected even with zero primary markers.
 Additional sites pay only their framing delta; the planner does not multiply
 the shared definition cost.
+
+Borrow framing is exact but size-neutral: `@borrow.await.recv` transfers
+`6 -> 6` while emitting one `@await.recv`; `@borrow.mut` and the owned extension
+`@borrow.end` each transfer `2 -> 0`. Their ordering and work are visible to the
+generic planner, while borrow-stack validity remains local to `borrow.pir`.

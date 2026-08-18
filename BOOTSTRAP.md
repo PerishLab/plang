@@ -17,7 +17,7 @@ surface without retaining the source. It exercises calls, branches, memory,
 argv, and bounded stream processing.
 
 The first closure is closed around lex, lower, and emit. Committed stage-zero
-assembly builds three executables; that trio rebuilds all eight compiler units,
+assembly builds three executables; that trio rebuilds all nine compiler units,
 and the rebuilt lex/lower/emit trio reproduces the same stage-one assembly for
 every unit byte for byte. Python remains a readable independent oracle and test
 fixture, but is not a cold-bootstrap dependency.
@@ -80,7 +80,7 @@ build/bootstrap/utf8-stream
 
 The script verifies the committed seed checksums, builds stage zero, builds
 stage one for lex/meta/send/collect/async/utf8-pass/lower/emit, rebuilds the same
-eight units with stage one, and requires byte-identical stage-one/stage-two
+nine units with stage one, and requires byte-identical stage-one/stage-two
 assembly. It then executes hello, scheduled await/collect, and the injected
 UTF-8 stream atom. `seed/check-bootstrap.sh` repeats this path in a disposable
 directory and rejects any Python reference in the bootstrap script.

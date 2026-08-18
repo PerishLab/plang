@@ -28,7 +28,32 @@ channel drains its accepted delta 4, updating a second object from 20 to 24,
 then resumes as failed. No lock, polling loop, hidden allocation, or shared
 mutable method descriptor is introduced.
 
-This is an operational boundary, not yet a static borrow checker. A future
-surface checker must reject a borrowed object reference stored into continuation
-state, while permitting snapshots, explicit moves, and serial capabilities that
-lower to these same ordinary values and channel states.
+`seed/borrow.pir` now makes the local boundary executable as a self-hosted
+compile-time pass. It recognizes three framed atoms:
+
+```text
+@borrow.mut OBJECT
+@borrow.end OBJECT
+@borrow.await.recv STATUS CHANNEL TARGET TASK RESUME_STATE
+```
+
+Mutable borrows form a lexical stack scoped to one `func ... end`. Opening a
+borrow rejects a duplicate live identity or a ninth nesting level. Closing must
+name the top borrow exactly. A function cannot end with a live borrow, and an
+known suspension atoms (`@await.recv`, `@await.send`, and `@stream.collect`)
+cannot occur until the stack is empty. The open and close atoms erase to
+zero tokens; a legal borrow-aware await becomes the ordinary `@await.recv` atom.
+The async pass therefore remains ignorant of borrowing, while the meta-driver
+derives `borrow -> async` from ordinary marker production and consumption.
+
+The checker allocates one 4096-byte input window, one 64-byte operand seat, and
+eight 72-byte borrow records: 4736 fixed bytes in an 8192-byte arena. It neither
+allocates runtime state nor emits runtime instructions. Marker-free input and
+already lowered output are byte-identical fixed points.
+
+`seed/borrow-await.pir` proves a synchronous mutable access followed by release
+and suspension. The negative fixtures reject a borrow across await, duplicate
+identity, non-LIFO close, ninth live borrow, function-end leak, and direct use of
+each existing suspension marker. This first
+closure deliberately models lexical identity names rather than general aliases;
+alias derivation and ownership moves remain later surface-type questions.
