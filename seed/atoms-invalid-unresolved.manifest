@@ -1,0 +1,7 @@
+1
+collect
+@stream.collect
+@await.recv
+task+channel+collector
+85
+collect

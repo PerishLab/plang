@@ -1,0 +1,13 @@
+2
+async
+@await.recv
+-
+task+channel
+36
+async
+collect
+@stream.collect
+@await.recv
+task+channel+collector
+85
+collect

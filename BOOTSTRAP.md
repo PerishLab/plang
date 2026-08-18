@@ -68,6 +68,11 @@ stream projection into `@await.recv`, so its executable dependency is
 `collect -> async -> lower -> emit`; reversing the atom passes is an explicit
 rejected fixture rather than an assumed commutation law. See `COLLECT.md`.
 
+`seed/meta.pir` now derives that dependency order from the bounded atom
+manifest, rejects unresolved emissions and cycles, and reaches its own
+byte-identical fixed point. A thin shell adapter remains the platform transport
+for starting the ordered streaming executables. See `META.md`.
+
 Tasks carry their resume function directly through PIR1's `funcptr` and
 `invoke` operations, so the scheduler contains no task-kind switch. The trusted
 primitive and the future checked surface boundary are described in

@@ -11,6 +11,7 @@ python3 "$root/seed/boot.py" "$root/seed/overflow.pir" "$work/overflow.s"
 python3 "$root/seed/boot.py" "$root/seed/scan.pir" "$work/scan.s"
 python3 "$root/seed/boot.py" "$root/seed/lex.pir" "$work/lex.s"
 python3 "$root/seed/boot.py" "$root/seed/decode.pir" "$work/decode.s"
+python3 "$root/seed/boot.py" "$root/seed/meta.pir" "$work/meta.s"
 python3 "$root/seed/boot.py" "$root/seed/collect.pir" "$work/collect.s"
 python3 "$root/seed/boot.py" "$root/seed/async.pir" "$work/async.s"
 python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
@@ -23,13 +24,16 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.s" -o "$work/scan"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lex.s" -o "$work/lex"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/decode.s" -o "$work/decode"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.s" -o "$work/meta"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect.s" -o "$work/collect"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.s" -o "$work/async"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
 
-$work/lex "$root/seed/await.pir" | $work/collect | $work/async | $work/lower | $work/emit > "$work/await.s"
+$work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
+"$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
+$work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.s" -o "$work/await"
 
 hello=$($work/hello)
@@ -59,6 +63,19 @@ $work/lower < "$work/async-frames.tokens" | $work/emit > "$work/async-frames.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async-frames.s" -o "$work/async-frames"
 $work/async-frames
 
+test "$($work/meta < "$root/seed/atoms.manifest")" = "collect
+async"
+
+for manifest in "$root"/seed/atoms-invalid-*.manifest; do
+    set +e
+    error=$($work/meta < "$manifest" 2>&1 > "$work/meta-invalid.order")
+    status=$?
+    set -e
+
+    test "$status" = 1
+    test "$error" = "plang0: atom manifest rejected"
+done
+
 $work/lex "$root/seed/collect-max.pir" | $work/collect > "$work/collect-max.tokens"
 test "$(wc -l < "$work/collect-max.tokens")" -eq 684
 $work/collect < "$work/collect-max.tokens" > "$work/collect-max-twice.tokens"
@@ -67,9 +84,12 @@ $work/async < "$work/collect-max.tokens" > "$work/collect-max.normal"
 test "$(wc -l < "$work/collect-max.normal")" -eq 945
 ! grep -q '^@' "$work/collect-max.normal"
 
-$work/lex "$root/seed/collect-order.pir" | $work/collect | $work/async > "$work/collect-order.normal"
-! grep -q '^@' "$work/collect-order.normal"
-$work/lower < "$work/collect-order.normal" | $work/emit > "$work/collect-order.s"
+$work/lex "$root/seed/collect-order.pir" > "$work/collect-order.source"
+$work/collect < "$work/collect-order.source" | $work/async > "$work/collect-order.manual"
+"$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/collect-order.source" "$work/collect-order.meta"
+cmp "$work/collect-order.manual" "$work/collect-order.meta"
+! grep -q '^@' "$work/collect-order.meta"
+$work/lower < "$work/collect-order.meta" | $work/emit > "$work/collect-order.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect-order.s" -o "$work/collect-order"
 $work/collect-order
 
@@ -178,6 +198,11 @@ $work/lex "$root/seed/async.pir" | $work/lower | $work/emit > "$work/async.self.
 $work/lex "$root/seed/collect.pir" | $work/lower | $work/emit > "$work/collect.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/collect.self.s" -o "$work/collect.self"
 
+$work/lex "$root/seed/meta.pir" | $work/lower | $work/emit > "$work/meta.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.self.s" -o "$work/meta.self"
+test "$($work/meta.self < "$root/seed/atoms.manifest")" = "collect
+async"
+
 $work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.self.s" -o "$work/emit.self"
 
@@ -187,6 +212,8 @@ $work/lex "$root/seed/async.pir" | $work/lower.self | $work/emit.self > "$work/a
 cmp "$work/async.self.s" "$work/async.fixed.s"
 $work/lex "$root/seed/collect.pir" | $work/lower.self | $work/emit.self > "$work/collect.fixed.s"
 cmp "$work/collect.self.s" "$work/collect.fixed.s"
+$work/lex "$root/seed/meta.pir" | $work/lower.self | $work/emit.self > "$work/meta.fixed.s"
+cmp "$work/meta.self.s" "$work/meta.fixed.s"
 $work/lex "$root/seed/emit.pir" | $work/lower.self | $work/emit.self > "$work/emit.fixed.s"
 cmp "$work/emit.self.s" "$work/emit.fixed.s"
 
@@ -198,7 +225,9 @@ $work/lex "$root/seed/channel.pir" | $work/lower.self | $work/emit.self > "$work
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.fixed.s" -o "$work/channel.fixed"
 test "$($work/channel.fixed)" = "channel ok"
 
-$work/lex "$root/seed/await.pir" | $work/collect.self | $work/async.self | $work/lower.self | $work/emit.self > "$work/await.fixed.s"
+$work/lex "$root/seed/await.pir" > "$work/await.fixed.source"
+"$root/seed/run-atoms.sh" "$work/meta.self" "$root/seed/atoms.manifest" "$work" "$work/await.fixed.source" "$work/await.fixed.atoms" .self
+$work/lower.self < "$work/await.fixed.atoms" | $work/emit.self > "$work/await.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.fixed.s" -o "$work/await.fixed"
 test "$($work/await.fixed)" = "ABCawait ok
 ABCcollect ok"
