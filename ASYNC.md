@@ -23,6 +23,17 @@ continues immediately; a pending result registers the task as a channel waiter
 and returns zero to the scheduler. Failed waiter registration returns the
 explicit PIR1 failure status `3`.
 
+The atom's dependencies and observable effects are deliberately narrow:
+
+```text
+dependency   channel_recv(channel, target), channel_wait(channel, task)
+task read    load pc at PC_OFFSET during dispatch
+task write   store RESUME_STATE at PC_OFFSET before receive
+pending      register waiter, then ret 0
+wait failure ret 3
+ready/closed/failed receive status remains in STATUS and falls through
+```
+
 The seed contract allows one through eight states and at most eight await sites
 per async function. State and resume-state operands are one decimal digit and
 must be smaller than the declared state count. Each copied operand is at most
@@ -37,8 +48,26 @@ of that namespace. Marker placement inside a function is likewise an upstream
 structural obligation. This pass establishes local atom framing and bounded
 lowering, not a second whole-program parser.
 
+For the token-stream transform `A`, the executable algebra currently promises:
+
+```text
+identity     A(x) = x                         when x contains no async markers
+idempotence  A(A(x)) = A(x)                  because lowering removes all markers
+frame reset  each @async resets its await-site namespace to zero
+expansion    @async(S) -> 15 + 10S tokens; @state -> 2; @await.recv -> 36
+```
+
+The expansion formula gives a closed output bound before lowering starts. With
+`1 <= S <= 8` and at most eight await sites, no marker has input-dependent
+iteration beyond those declared bounds. `seed/async-frames.pir` proves two
+functions can reuse state and await indices without label collision after
+ordinary name lowering. Cross-atom commutation is intentionally not claimed:
+it requires a second atom with overlapping effects before the ordering law can
+be tested honestly.
+
 `seed/async-max.pir` proves both inclusive upper bounds. The
 `seed/async-invalid-*.pir` fixtures prove truncated framing, zero or excessive
 state counts, non-canonical state numbers, out-of-range states, and excessive
 await sites all fail with one stable diagnostic. `seed/check.sh` also rebuilds
-the pass through the closed compiler pair and compares byte-identical output.
+the pass through the closed compiler pair, compares byte-identical output, and
+executes the identity, idempotence, frame-isolation, and expansion contracts.

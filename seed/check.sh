@@ -36,8 +36,25 @@ test "$($work/channel)" = "channel ok"
 test "$($work/await)" = "ABCawait ok"
 
 $work/lex "$root/seed/async-max.pir" | $work/async > "$work/async-max.tokens"
+test "$(wc -l < "$work/async-max.tokens")" -eq 399
 test "$(grep -c '^__async_state_7$' "$work/async-max.tokens")" = 2
 test "$(grep -c '^__async_waiting_7$' "$work/async-max.tokens")" = 2
+
+$work/lex "$root/seed/hello.pir" > "$work/async-identity.tokens"
+$work/async < "$work/async-identity.tokens" > "$work/async-identity.out"
+cmp "$work/async-identity.tokens" "$work/async-identity.out"
+
+$work/lex "$root/seed/await.pir" | $work/async > "$work/async-once.tokens"
+$work/async < "$work/async-once.tokens" > "$work/async-twice.tokens"
+cmp "$work/async-once.tokens" "$work/async-twice.tokens"
+
+$work/lex "$root/seed/async-frames.pir" | $work/async > "$work/async-frames.tokens"
+test "$(grep -c '^__async_state_0$' "$work/async-frames.tokens")" = 4
+test "$(grep -c '^__async_waiting_0$' "$work/async-frames.tokens")" = 4
+! grep -q '^__async_waiting_1$' "$work/async-frames.tokens"
+$work/lower < "$work/async-frames.tokens" | $work/emit > "$work/async-frames.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async-frames.s" -o "$work/async-frames"
+$work/async-frames
 
 for source in "$root"/seed/async-invalid-*.pir; do
     set +e
