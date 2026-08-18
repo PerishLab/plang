@@ -11,10 +11,10 @@ python3 "$root/seed/boot.py" "$root/seed/overflow.pir" "$work/overflow.s"
 python3 "$root/seed/boot.py" "$root/seed/scan.pir" "$work/scan.s"
 python3 "$root/seed/boot.py" "$root/seed/lex.pir" "$work/lex.s"
 python3 "$root/seed/boot.py" "$root/seed/decode.pir" "$work/decode.s"
+python3 "$root/seed/boot.py" "$root/seed/async.pir" "$work/async.s"
 python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
 python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
-python3 "$root/seed/boot.py" "$root/seed/await.pir" "$work/await.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/exhaust.s" -o "$work/exhaust"
@@ -22,15 +22,32 @@ python3 "$root/seed/boot.py" "$root/seed/await.pir" "$work/await.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.s" -o "$work/scan"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lex.s" -o "$work/lex"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/decode.s" -o "$work/decode"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.s" -o "$work/async"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
+
+$work/lex "$root/seed/await.pir" | $work/async | $work/lower | $work/emit > "$work/await.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.s" -o "$work/await"
 
 hello=$($work/hello)
 test "$hello" = "hello, plang"
 test "$($work/channel)" = "channel ok"
 test "$($work/await)" = "ABCawait ok"
+
+$work/lex "$root/seed/async-max.pir" | $work/async > "$work/async-max.tokens"
+test "$(grep -c '^__async_state_7$' "$work/async-max.tokens")" = 2
+test "$(grep -c '^__async_waiting_7$' "$work/async-max.tokens")" = 2
+
+for source in "$root"/seed/async-invalid-*.pir; do
+    set +e
+    $work/lex "$source" | $work/async > "$work/async-invalid.tokens" 2> "$work/async-invalid.error"
+    status=$?
+    set -e
+
+    test "$status" = 1
+    test "$(cat "$work/async-invalid.error")" = "plang0: async lowering rejected token stream"
+done
 
 set +e
 error=$($work/exhaust 2>&1)
@@ -77,7 +94,7 @@ test "$(sed -n '1p' "$work/unterminated.tokens")" = "bytes"
 
 $work/lex "$root/seed/decode.pir" | $work/decode > "$work/decode.out"
 test "$(sed -n '1p' "$work/decode.out")" = "decode ok"
-$work/lex "$root/seed/await.pir" | $work/decode > "$work/await.decode.out"
+$work/lex "$root/seed/await.pir" | $work/async | $work/decode > "$work/await.decode.out"
 test "$(sed -n '1p' "$work/await.decode.out")" = "decode ok"
 
 set +e
@@ -103,11 +120,16 @@ test "$error" = "plang0: lowering rejected token stream"
 $work/lex "$root/seed/lower.pir" | $work/lower | $work/emit > "$work/lower.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.self.s" -o "$work/lower.self"
 
+$work/lex "$root/seed/async.pir" | $work/lower | $work/emit > "$work/async.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async.self.s" -o "$work/async.self"
+
 $work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.self.s" -o "$work/emit.self"
 
 $work/lex "$root/seed/lower.pir" | $work/lower.self | $work/emit.self > "$work/lower.fixed.s"
 cmp "$work/lower.self.s" "$work/lower.fixed.s"
+$work/lex "$root/seed/async.pir" | $work/lower.self | $work/emit.self > "$work/async.fixed.s"
+cmp "$work/async.self.s" "$work/async.fixed.s"
 $work/lex "$root/seed/emit.pir" | $work/lower.self | $work/emit.self > "$work/emit.fixed.s"
 cmp "$work/emit.self.s" "$work/emit.fixed.s"
 
@@ -119,6 +141,6 @@ $work/lex "$root/seed/channel.pir" | $work/lower.self | $work/emit.self > "$work
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.fixed.s" -o "$work/channel.fixed"
 test "$($work/channel.fixed)" = "channel ok"
 
-$work/lex "$root/seed/await.pir" | $work/lower.self | $work/emit.self > "$work/await.fixed.s"
+$work/lex "$root/seed/await.pir" | $work/async.self | $work/lower.self | $work/emit.self > "$work/await.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.fixed.s" -o "$work/await.fixed"
 test "$($work/await.fixed)" = "ABCawait ok"

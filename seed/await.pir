@@ -345,13 +345,14 @@ arg %scheduler 1
 arg %channel 2
 arg %target 3
 u64 %zero 0
-u64 %bytes 48
+u64 %bytes 56
 u64 %resume_at 0
 u64 %pc_at 8
 u64 %scheduler_at 16
 u64 %channel_at 24
 u64 %target_at 32
 u64 %done_at 40
+u64 %count_at 48
 alloc %task %bytes
 zero %task failed
 store64 %task %resume_at %resume
@@ -360,6 +361,7 @@ store64 %task %scheduler_at %scheduler
 store64 %task %channel_at %channel
 store64 %task %target_at %target
 store64 %task %done_at %zero
+store64 %task %count_at %zero
 ret %task
 label failed
 ret %zero
@@ -367,43 +369,39 @@ end
 
 func consumer_resume 1
 arg %task 0
-u64 %zero 0
+@async %task 8 1
+@state 0
 u64 %one 1
 u64 %closed 2
 u64 %failed 3
 u64 %expected 3
 u64 %fd 1
-u64 %pc_at 8
 u64 %scheduler_at 16
 u64 %channel_at 24
 u64 %target_at 32
 u64 %done_at 40
+u64 %count_at 48
 load64 %channel %task %channel_at
 load64 %target %task %target_at
-call %status channel_recv 2 %channel %target
-eq %test %status %zero
-nonzero %test wait
+@await.recv %status %channel %target %task 0
 eq %test %status %one
 nonzero %test value
 eq %test %status %closed
 nonzero %test ended
 jump bad
-label wait
-call %test channel_wait 2 %channel %task
-zero %test bad
-ret %zero
 label value
 write %wrote %fd %target %one
-load64 %pc %task %pc_at
-add %pc %pc %one
-store64 %task %pc_at %pc
+load64 %count %task %count_at
+add %count %count %one
+store64 %task %count_at %count
 load64 %scheduler %task %scheduler_at
 call %test scheduler_enqueue 2 %scheduler %task
 zero %test bad
-ret %zero
+u64 %pending 0
+ret %pending
 label ended
-load64 %pc %task %pc_at
-ne %test %pc %expected
+load64 %count %task %count_at
+ne %test %count %expected
 nonzero %test bad
 store64 %task %done_at %one
 out ok

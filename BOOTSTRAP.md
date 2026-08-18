@@ -57,6 +57,12 @@ and explicit task continuation. It demonstrates a consumer suspending without
 polling, being woken by a producer, yielding between values, and observing the
 terminal state after drain. See `AWAIT.md` for the lowering contract.
 
+The hand-written resume state machine has now been replaced by the first
+self-hosted atom pass. `seed/async.pir` expands bounded `@async`, `@state`, and
+`@await.recv` markers before ordinary PIR1 lowering; the rebuilt pass reaches
+the same byte-identical compiler fixed point. See `ASYNC.md` for the local
+framing and resource contract.
+
 Tasks carry their resume function directly through PIR1's `funcptr` and
 `invoke` operations, so the scheduler contains no task-kind switch. The trusted
 primitive and the future checked surface boundary are described in

@@ -64,6 +64,11 @@ arm64 Darwin assembly. The Python seed compiles both members once; the resulting
 pair compiles both sources again, and the next generation is byte-identical.
 The rebuilt pair also compiles `hello.pir` successfully.
 
+`seed/async.pir` is the first self-hosted semantic-atom pass in front of that
+pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers
+without retaining an AST, and is itself rebuilt to a byte-identical fixed
+point. See `ASYNC.md` for its bounds and explicit failure contract.
+
 The emitter implements only the PIR1 operations needed by the pair and hello
 fixture, with calls capped at four arguments and small immediates emitted through
 one `movz`. `seed/boot.py` remains the broader PIR1 oracle. The lowering pass is
