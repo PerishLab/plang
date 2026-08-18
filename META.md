@@ -22,6 +22,7 @@ AUX_MODE_C_OR_A
 AUX_BASE
 AUX_SCALE
 AUX_OPERAND_OFFSET
+FIXED_OUTPUT_ON_USE
 EXECUTABLE
 ... repeated ATOM_COUNT times
 EXTENSION_RULE_COUNT
@@ -45,16 +46,19 @@ consumed by the same pass but not participating in graph edges. Its mode is
 `c` for constant output `BASE`, or `a` for affine output
 `BASE + SCALE * canonical_decimal_operand[OFFSET]`. Constant rules require zero
 scale and offset; affine rules require both to be positive. `WORK_BUDGET` is
-1..65535. Up to four extension rules reuse the same constant/affine algebra and
+1..65535. `FIXED_OUTPUT_ON_USE` is a canonical natural no greater than 4095;
+it is charged once when the atom's primary marker count is nonzero, independent
+of the number of sites. Up to four extension rules reuse the same
+constant/affine algebra and
 attach to an atom by zero-based manifest index. They exist for a real third or
 later structural marker without copying empty rule slots into every atom.
 
 For each emitted marker, exactly one atom must consume it. Duplicate consumers,
 unresolved emissions, and cycles are rejected. A bounded Kahn sort chooses the
 first ready atom in manifest order, giving a deterministic plan. The registry
-uses at most eight 408-byte records plus four 144-byte extension records;
-together with the input window and operand seat, fixed allocation is 8000 bytes
-inside the 8 KiB arena, leaving 192 bytes. The planner main function uses the
+uses at most eight 416-byte records plus four 144-byte extension records;
+together with the input window and operand seat, fixed allocation is 8064 bytes
+inside the 8 KiB arena, leaving 128 bytes. The planner main function uses the
 existing PIR1 ceiling of 30 virtual registers; neither backend bound was widened.
 
 The source census retains only token and marker counters. In topological order,
@@ -64,6 +68,7 @@ the planner applies each atom's declared bounded transfer:
 next tokens = current tokens
             - marker count * input framing
             + marker count * output framing
+            + (marker count > 0 ? fixed output on use : 0)
 
 next tokens               -= auxiliary count * auxiliary input framing
 next tokens               += sum(auxiliary constant/affine outputs)
@@ -128,3 +133,8 @@ Cumulative compiler work is 8132/8192, leaving 60 tokens without widening
 the budget. The isolated extension boundary accepts `6 -> 36` at
 budget 36 and rejects budget 35. Unknown source markers still reach ordinary
 PIR1 lowering and are rejected there.
+
+The fixed-on-use boundary is separately exact: one four-token `@stream.utf8`
+site transfers to a six-token call plus the 415-token shared closure, so budget
+421 is accepted and 420 is rejected. Additional sites pay only the two-token
+framing delta; the planner does not multiply the shared definition cost.

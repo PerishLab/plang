@@ -34,10 +34,25 @@ availability boundary and preserve the four statuses through clean close,
 truncated close, and upstream failure.
 
 The shared decoder helpers occupy 345 PIR tokens and the generic channel
-projection wrapper 70. A single shared implementation therefore costs 415
-definition tokens regardless of sites, while inlining only the decoder at two
-sites has a 690-token lower bound before site framing. This is measured evidence
-for shared semantic helpers, not yet a commitment to the surface atom syntax.
+projection wrapper 70. `seed/utf8-pass.pir` now makes that boundary executable:
+
+```text
+@stream.utf8 STATUS CHANNEL STATE
+=> call STATUS __utf8_stream_recv 2 CHANNEL STATE
+```
+
+The first marker causes the pass to append the namespaced 415-token ordinary
+PIR helper closure once; later markers add only their two-token call-site delta.
+The 13-site fixture therefore transfers exactly from 769 to 1,210 tokens:
+`769 + 13 * (6 - 4) + 415`. A second pass is byte-identical, marker-free input
+is byte-identical, and Python, self-hosted, and fixed pass generations all emit
+the same normalized program. The caller still owns the explicit 40-byte state,
+and the target program still supplies ordinary `channel_recv`; no UTF-8 opcode,
+runtime ABI, module loader, or hidden allocation was introduced.
+
+Inlining only the decoder at two sites has a 690-token lower bound before site
+framing. The injected closure is therefore the selected normal form: one
+feature cost per program plus a small per-site call cost.
 
 Static `bytes` declarations are transport, not Unicode syntax. A raw UTF-8
 literal such as `"λ你好😀"` reaches the assembler as the same source bytes;

@@ -5,7 +5,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 report_work=$(mktemp -d)
 trap 'rm -rf "$report_work"' EXIT
 
-units="lex meta send collect async lower emit"
+units="lex meta send collect async utf8-pass lower emit"
 resources="$root/seed/resources.manifest"
 total_source=0
 total_linked=0
@@ -111,3 +111,4 @@ printf '%s\n' '- `@await.recv`: `36` tokens, at most `8` sites'
 printf '%s\n' '- `@await.send`: `36` tokens, shares the `8`-site frame limit'
 printf '%s\n' '- `@stream.collect`: `85` tokens, at most `8` sites'
 printf '%s\n' '- `@channel.send`: `4 -> 6` tokens per site'
+printf '%s\n' '- `@stream.utf8`: `4 -> 6` tokens per site plus one 415-token helper closure'

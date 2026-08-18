@@ -26,6 +26,7 @@ python3 "$root/seed/boot.py" "$root/seed/capability.pir" "$work/capability.s"
 python3 "$root/seed/boot.py" "$root/seed/utf8.pir" "$work/utf8.s"
 python3 "$root/seed/boot.py" "$root/seed/utf8-decode.pir" "$work/utf8-decode.s"
 python3 "$root/seed/boot.py" "$root/seed/utf8-stream.pir" "$work/utf8-stream.s"
+python3 "$root/seed/boot.py" "$root/seed/utf8-pass.pir" "$work/utf8-pass.s"
 python3 "$root/seed/boot.py" "$root/seed/utf8-literal.pir" "$work/utf8-literal.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
@@ -47,6 +48,7 @@ python3 "$root/seed/boot.py" "$root/seed/utf8-literal.pir" "$work/utf8-literal.s
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8.s" -o "$work/utf8"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-decode.s" -o "$work/utf8-decode"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-stream.s" -o "$work/utf8-stream"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-pass.s" -o "$work/utf8-pass"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-literal.s" -o "$work/utf8-literal"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
@@ -65,6 +67,28 @@ test "$($work/utf8-stream)" = "utf8 stream ok"
 test "$($work/utf8-literal | od -An -tx1 | tr -d ' \n')" = "cebbe4bda0e5a5bdf09f98800a"
 utf8_cost=$(awk '/^func utf8_decode_feed/{shared=1} /^func utf8_stream_recv/{wrapper=1} /^func main 0/{main=1} !/^#/ && NF {if(shared&&!wrapper) helper+=NF; if(wrapper&&!main) wrap+=NF} END {print helper ":" wrap}' "$root/seed/utf8-stream.pir")
 test "$utf8_cost" = "345:70"
+$work/lex "$root/seed/utf8-stream-atom.pir" > "$work/utf8-stream-atom.source"
+$work/utf8-pass < "$work/utf8-stream-atom.source" > "$work/utf8-stream-atom.once"
+$work/utf8-pass < "$work/utf8-stream-atom.once" > "$work/utf8-stream-atom.twice"
+cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.twice"
+test "$(grep -c '^@stream.utf8$' "$work/utf8-stream-atom.source")" = 13
+test "$(wc -l < "$work/utf8-stream-atom.source")" -eq 769
+test "$(wc -l < "$work/utf8-stream-atom.once")" -eq 1210
+test "$(awk 'previous == "func" && $0 == "__utf8_stream_recv" { count++ } { previous = $0 } END { print count + 0 }' "$work/utf8-stream-atom.once")" = 1
+$work/lower < "$work/utf8-stream-atom.once" | $work/emit > "$work/utf8-stream-atom.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-stream-atom.s" -o "$work/utf8-stream-atom"
+test "$($work/utf8-stream-atom)" = "utf8 stream ok"
+
+$work/lex "$root/seed/hello.pir" > "$work/utf8-pass-identity.source"
+$work/utf8-pass < "$work/utf8-pass-identity.source" > "$work/utf8-pass-identity.tokens"
+cmp "$work/utf8-pass-identity.source" "$work/utf8-pass-identity.tokens"
+
+set +e
+$work/lex "$root/seed/utf8-pass-invalid-empty.pir" | $work/utf8-pass > "$work/utf8-pass-invalid.tokens" 2> "$work/utf8-pass-invalid.error"
+status=$?
+set -e
+test "$status" = 1
+test "$(cat "$work/utf8-pass-invalid.error")" = "plang0: utf8 lowering rejected token stream"
 python3 "$root/seed/boot.py" "$root/seed/invalid-bytes-unicode-escape.pir" "$work/invalid-bytes-unicode-escape.py.s"
 set +e
 error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-bytes-unicode-escape.py.s" -o "$work/invalid-bytes-unicode-escape.py" 2>&1)
@@ -113,6 +137,14 @@ test "$status" = 1
 test "$error" = "plang0: atom manifest rejected"
 test "$($work/meta 3< "$root/seed/affine-exact.tokens" < "$root/seed/atoms-affine-exact.manifest")" = "async"
 test "$($work/meta 3< "$root/seed/send-await.tokens" < "$root/seed/atoms-extension-exact.manifest")" = "async"
+test "$($work/meta 3< "$root/seed/utf8-one.tokens" < "$root/seed/atoms-fixed-exact.manifest")" = "utf8-pass"
+
+set +e
+error=$($work/meta 3< "$root/seed/utf8-one.tokens" < "$root/seed/atoms-fixed-overflow.manifest" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: atom manifest rejected"
 
 set +e
 error=$($work/meta 3< "$root/seed/send-await.tokens" < "$root/seed/atoms-extension-overflow.manifest" 2>&1)
@@ -532,6 +564,11 @@ $work/lex "$root/seed/collect.pir" | $work/lower | $work/emit > "$work/collect.s
 $work/lex "$root/seed/send.pir" | $work/lower | $work/emit > "$work/send.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/send.self.s" -o "$work/send.self"
 
+$work/lex "$root/seed/utf8-pass.pir" | $work/lower | $work/emit > "$work/utf8-pass.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-pass.self.s" -o "$work/utf8-pass.self"
+$work/utf8-pass.self < "$work/utf8-stream-atom.source" > "$work/utf8-stream-atom.self.tokens"
+cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.self.tokens"
+
 $work/lex "$root/seed/meta.pir" | $work/lower | $work/emit > "$work/meta.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.self.s" -o "$work/meta.self"
 test "$($work/meta.self 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "send
@@ -557,6 +594,9 @@ $work/lex "$root/seed/collect.pir" | $work/lower.self | $work/emit.self > "$work
 cmp "$work/collect.self.s" "$work/collect.fixed.s"
 $work/lex "$root/seed/send.pir" | $work/lower.self | $work/emit.self > "$work/send.fixed.s"
 cmp "$work/send.self.s" "$work/send.fixed.s"
+$work/lex "$root/seed/utf8-pass.pir" | $work/lower.self | $work/emit.self > "$work/utf8-pass.fixed.s"
+cmp "$work/utf8-pass.self.s" "$work/utf8-pass.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-pass.fixed.s" -o "$work/utf8-pass.fixed"
 $work/lex "$root/seed/meta.pir" | $work/lower.self | $work/emit.self > "$work/meta.fixed.s"
 cmp "$work/meta.self.s" "$work/meta.fixed.s"
 $work/lex "$root/seed/emit.pir" | $work/lower.self | $work/emit.self > "$work/emit.fixed.s"
@@ -588,6 +628,13 @@ $work/lex "$root/seed/utf8-stream.pir" | $work/lower.self | $work/emit.self > "$
 cmp "$work/utf8-stream.self.s" "$work/utf8-stream.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-stream.fixed.s" -o "$work/utf8-stream.fixed"
 test "$($work/utf8-stream.fixed)" = "utf8 stream ok"
+
+$work/utf8-pass.fixed < "$work/utf8-stream-atom.source" > "$work/utf8-stream-atom.fixed.tokens"
+cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.fixed.tokens"
+$work/lower.self < "$work/utf8-stream-atom.fixed.tokens" | $work/emit.self > "$work/utf8-stream-atom.fixed.s"
+cmp "$work/utf8-stream-atom.s" "$work/utf8-stream-atom.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-stream-atom.fixed.s" -o "$work/utf8-stream-atom.fixed"
+test "$($work/utf8-stream-atom.fixed)" = "utf8 stream ok"
 
 $work/lex "$root/seed/utf8-literal.pir" | $work/lower.self | $work/emit.self > "$work/utf8-literal.fixed.s"
 cmp "$work/utf8-literal.self.s" "$work/utf8-literal.fixed.s"

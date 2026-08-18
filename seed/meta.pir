@@ -340,7 +340,7 @@ u64 %one 1
 u64 %unknown 255
 u64 %capacity 4096
 u64 %small 64
-u64 %record_size 408
+u64 %record_size 416
 u64 %rule_size 144
 u64 %fd 0
 alloc %buffer %capacity
@@ -441,6 +441,13 @@ call %value emission 2 %a %length
 eq %test %value %unknown
 nonzero %test invalid
 u64 %offset 344
+store64 %current %offset %value
+call %length nextcopy 4 %buffer %capacity %a %small
+zero %length invalid
+call %value natural 2 %a %length
+eq %test %value %unknown
+nonzero %test invalid
+u64 %offset 408
 store64 %current %offset %value
 u64 %offset 320
 load64 %value %current %offset
@@ -959,6 +966,15 @@ le %test %value %length
 zero %test invalid
 u64 %value 0
 add %value %value %length
+zero %markers plan_fixed_done
+u64 %offset 408
+load64 %other_index %current %offset
+add %length %value %other_index
+le %test %value %length
+zero %test invalid
+u64 %value 0
+add %value %value %length
+label plan_fixed_done
 u64 %offset 384
 load64 %index %current %offset
 u64 %offset 312

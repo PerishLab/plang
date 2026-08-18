@@ -35,8 +35,10 @@ UTF-8 static bytes cross Python, self-hosted, and fixed compilers without the
 emitter understanding characters. `utf8-decode.pir` adds a one-byte-at-a-time,
 caller-owned incremental decoder whose pending/value/closed/failed statuses
 align with channels. `utf8-stream.pir` then composes it with the existing
-capacity-one byte channel across every multi-byte availability boundary. See
-`UTF8.md`.
+capacity-one byte channel across every multi-byte availability boundary.
+`utf8-pass.pir` lowers `@stream.utf8` call sites and injects that ordinary PIR
+helper closure exactly once per program, with byte-identical self-hosted and
+fixed-point generations. See `UTF8.md`.
 The lowerer rejects function declarations wider than eight. Argument indices
 are checked against a per-function assembler constant, keeping that local
 validation outside runtime code and avoiding mutable cross-helper compiler
@@ -125,7 +127,8 @@ remains the platform transport for starting the ordered streaming executables.
 See `META.md`.
 
 Compiler-pass arenas are now program-owned profiles rather than one runtime
-constant: lex, meta, send, collect, async, and lower use 8 KiB; emit uses 32 KiB.
+constant: lex, meta, send, collect, async, utf8-pass, and lower use 8 KiB; emit
+uses 32 KiB.
 `seed/profile.pir` proves a 4 KiB arena through both compiler generations, and
 `seed/report.sh` checks fixed-allocation headroom and repeated helpers. See
 `CLOSURE.md` for the measured baseline and the decision to defer pass fusion.
