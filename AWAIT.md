@@ -33,11 +33,13 @@ observe terminal rejection. The canonical fixture deliberately uses a one-byte
 channel, forcing the `A/B/C` producer to suspend and retry without polling or
 allocating after construction.
 
-Reader and writer waiters share one bounded FIFO primitive. Each queue is a
-40-byte descriptor `{items, capacity, read, write, count}` embedded at channel
-offset 48 or 88; push, wake-one, and wake-all receive that base offset explicitly.
-The direction-specific entry points retain only readiness policy, so queue
-ordering and saturation behavior have one executable implementation.
+The runnable queue and both waiter queues share one bounded FIFO push kernel.
+Each queue has a 40-byte descriptor `{items, capacity, read, write, count}` at
+its owner's base offset 0, 48, or 88. Waiter wake keeps its transactional rule:
+enqueue the task first and consume the waiter only after enqueue succeeds. The
+direction-specific entry points retain only readiness policy, so queue ordering
+and saturation behavior have one executable implementation without weakening
+wake failure semantics.
 
 The fixture starts the consumer before the producer. Its observable sequence is:
 

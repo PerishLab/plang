@@ -36,31 +36,8 @@ func scheduler_enqueue 2
 arg %scheduler 0
 arg %task 1
 u64 %zero 0
-u64 %one 1
-u64 %scale 8
-u64 %queue_at 0
-u64 %capacity_at 8
-u64 %write_at 24
-u64 %count_at 32
-load64 %capacity %scheduler %capacity_at
-load64 %count %scheduler %count_at
-eq %test %count %capacity
-nonzero %test full
-load64 %queue %scheduler %queue_at
-load64 %write %scheduler %write_at
-mul %offset %write %scale
-store64 %queue %offset %task
-add %write %write %one
-eq %test %write %capacity
-zero %test store
-u64 %write 0
-label store
-add %count %count %one
-store64 %scheduler %write_at %write
-store64 %scheduler %count_at %count
-ret %one
-label full
-ret %zero
+call %test fifo_push 3 %scheduler %zero %task
+ret %test
 end
 
 func scheduler_next 1
@@ -146,26 +123,26 @@ label failed
 ret %zero
 end
 
-func waiter_push 3
-arg %channel 0
+func fifo_push 3
+arg %owner 0
 arg %base 1
-arg %task 2
+arg %item 2
 u64 %zero 0
 u64 %one 1
 u64 %eight 8
 u64 %twenty_four 24
 u64 %thirty_two 32
-load64 %waiters %channel %base
+load64 %items %owner %base
 add %field %base %eight
-load64 %capacity %channel %field
+load64 %capacity %owner %field
 add %field %base %twenty_four
-load64 %write %channel %field
+load64 %write %owner %field
 add %count_at %base %thirty_two
-load64 %count %channel %count_at
+load64 %count %owner %count_at
 eq %test %count %capacity
 nonzero %test full
 mul %offset %write %eight
-store64 %waiters %offset %task
+store64 %items %offset %item
 add %write %write %one
 eq %test %write %capacity
 zero %test store
@@ -173,8 +150,8 @@ u64 %write 0
 label store
 add %count %count %one
 add %field %base %twenty_four
-store64 %channel %field %write
-store64 %channel %count_at %count
+store64 %owner %field %write
+store64 %owner %count_at %count
 ret %one
 label full
 ret %zero
@@ -250,7 +227,7 @@ load64 %capacity %channel %capacity_at
 load64 %count %channel %count_at
 eq %test %count %capacity
 zero %test ready
-call %test waiter_push 3 %channel %waiters_at %task
+call %test fifo_push 3 %channel %waiters_at %task
 ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
@@ -269,7 +246,7 @@ load64 %count %channel %count_at
 nonzero %count ready
 load64 %state %channel %state_at
 nonzero %state ready
-call %test waiter_push 3 %channel %waiters_at %task
+call %test fifo_push 3 %channel %waiters_at %task
 ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
