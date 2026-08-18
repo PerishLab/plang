@@ -84,9 +84,11 @@ expansion, emission multiplicity, and cumulative work against an explicit budget
 self-hosted; only process transport remains in `seed/run-atoms.sh`. See
 `META.md`.
 
-The emitter implements only the PIR1 operations needed by the pair and hello
-fixture, with calls capped at four arguments and small immediates emitted through
-one `movz`. `seed/boot.py` remains the broader PIR1 oracle. The lowering pass is
-deliberately not a general symbol table or AST: it is the smallest stateful
+The emitter implements the listed arithmetic, bitwise, comparison, memory, and
+control operations needed by the closure fixtures, with calls capped at four
+arguments and small immediates emitted through one `movz`. `seed/bitwise.pir`
+keeps `and/or/xor/shl/shr` aligned with the Python oracle through both compiler
+generations. `seed/boot.py` remains the broader PIR1 oracle. The lowering pass
+is deliberately not a general symbol table or AST: it is the smallest stateful
 stream transform that restores readable names without widening the trusted
 backend.

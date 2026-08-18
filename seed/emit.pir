@@ -1,6 +1,6 @@
 memory 32768
 bytes top "memory M\nbytes B\nfunc F\n"
-bytes body "arg A\nu64 U\ndata D\nfuncptr F\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\ninvoke Y\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
+bytes body "arg A\nu64 U\ndata D\nfuncptr F\nadd B\nsub B\nmul B\nand B\nor B\nxor B\nshl B\nshr B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\ninvoke Y\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
 bytes constsec ".section __TEXT,__const\n"
 bytes memorya ".section __DATA,__data\n.p2align 3\n.globl _plang_memory_limit\n_plang_memory_limit:\n    .quad "
 bytes memoryb "\n.section __DATA,__bss\n.p2align 4\n.globl _plang_arena\n_plang_arena:\n    .space "
@@ -30,6 +30,11 @@ bytes load9 "    ldur x9, [x29, #-"
 bytes add11 "    add x11, x9, x10\n"
 bytes sub11 "    sub x11, x9, x10\n"
 bytes mul11 "    mul x11, x9, x10\n"
+bytes and11 "    and x11, x9, x10\n"
+bytes or11 "    orr x11, x9, x10\n"
+bytes xor11 "    eor x11, x9, x10\n"
+bytes shl11 "    lsl x11, x9, x10\n"
+bytes shr11 "    lsr x11, x9, x10\n"
 bytes cmp "    cmp x9, x10\n    cset x11, "
 bytes eqcond "eq\n"
 bytes necond "ne\n"
@@ -432,17 +437,53 @@ call %wrote put 2 %piece %piecesize
 load8 %byte %op %zero
 u64 %char 97
 eq %test %byte %char
-nonzero %test binary_add
+nonzero %test binary_a
 u64 %char 109
 eq %test %byte %char
 nonzero %test binary_mul
-data %piece %piecesize sub11
+u64 %char 111
+eq %test %byte %char
+nonzero %test binary_or
+u64 %char 120
+eq %test %byte %char
+nonzero %test binary_xor
+jump binary_s
+label binary_a
+load8 %byte %op %one
+u64 %char 100
+eq %test %byte %char
+nonzero %test binary_add
+data %piece %piecesize and11
 jump binary_emit
 label binary_add
 data %piece %piecesize add11
 jump binary_emit
 label binary_mul
 data %piece %piecesize mul11
+jump binary_emit
+label binary_or
+data %piece %piecesize or11
+jump binary_emit
+label binary_xor
+data %piece %piecesize xor11
+jump binary_emit
+label binary_s
+load8 %byte %op %one
+u64 %char 117
+eq %test %byte %char
+nonzero %test binary_sub
+u64 %value 2
+load8 %byte %op %value
+u64 %char 108
+eq %test %byte %char
+nonzero %test binary_shl
+data %piece %piecesize shr11
+jump binary_emit
+label binary_sub
+data %piece %piecesize sub11
+jump binary_emit
+label binary_shl
+data %piece %piecesize shl11
 label binary_emit
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize store11

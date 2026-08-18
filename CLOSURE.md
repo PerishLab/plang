@@ -15,8 +15,8 @@ The baseline after introducing per-program arenas is:
 | collect | 7,327 | 50,888 | 50,896 | 16,384 | 16,384 | 8,192 | 4,416 | 3,776 |
 | async | 9,740 | 50,888 | 50,896 | 16,384 | 16,384 | 8,192 | 4,416 | 3,776 |
 | lower | 9,281 | 51,128 | 51,136 | 16,384 | 16,384 | 8,192 | 6,208 | 1,984 |
-| emit | 20,689 | 50,744 | 50,768 | 16,384 | 49,152 | 32,768 | 20,480 | 12,288 |
-| total | 75,417 | 356,240 | 356,336 | — | — | 81,920 | 51,904 | 30,016 |
+| emit | 21,622 | 50,744 | 50,768 | 16,384 | 49,152 | 32,768 | 20,480 | 12,288 |
+| total | 76,350 | 356,240 | 356,336 | — | — | 81,920 | 51,904 | 30,016 |
 
 Before this measurement, every pass inherited a 16 MiB arena: 112 MiB of
 declared capacity across the seven executables. The new profiles total 80 KiB,

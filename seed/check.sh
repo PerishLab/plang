@@ -19,6 +19,7 @@ python3 "$root/seed/boot.py" "$root/seed/async.pir" "$work/async.s"
 python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
 python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
+python3 "$root/seed/boot.py" "$root/seed/bitwise.pir" "$work/bitwise.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.s" -o "$work/profile"
@@ -34,6 +35,7 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.s" -o "$work/bitwise"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
@@ -43,6 +45,7 @@ $work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 
 hello=$($work/hello)
 test "$hello" = "hello, plang"
+test "$($work/bitwise)" = "bitwise ok"
 test "$($work/profile)" = "profile ok"
 test "$($work/channel)" = "channel ok"
 test "$($work/await)" = "ABCawait ok
@@ -133,6 +136,14 @@ set -e
 
 test "$status" = 1
 test "$error" = "plang0: lowering rejected token stream"
+
+set +e
+error=$($work/emit < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.emit.s")
+status=$?
+set -e
+
+test "$status" = 1
+test "$error" = "plang0: emitter rejected token stream"
 
 for source in "$root"/seed/collect-invalid-*.pir; do
     set +e
@@ -235,6 +246,10 @@ $work/lex "$root/seed/hello.pir" | $work/lower | $work/emit > "$work/hello.self.
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.self.s" -o "$work/hello.self"
 test "$($work/hello.self)" = "hello, plang"
 
+$work/lex "$root/seed/bitwise.pir" | $work/lower | $work/emit > "$work/bitwise.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.self.s" -o "$work/bitwise.self"
+test "$($work/bitwise.self)" = "bitwise ok"
+
 set +e
 error=$($work/lower < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.lower.tokens")
 status=$?
@@ -264,6 +279,14 @@ async"
 $work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.self.s" -o "$work/emit.self"
 
+set +e
+error=$($work/emit.self < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.emit.self.s")
+status=$?
+set -e
+
+test "$status" = 1
+test "$error" = "plang0: emitter rejected token stream"
+
 $work/lex "$root/seed/lower.pir" | $work/lower.self | $work/emit.self > "$work/lower.fixed.s"
 cmp "$work/lower.self.s" "$work/lower.fixed.s"
 $work/lex "$root/seed/async.pir" | $work/lower.self | $work/emit.self > "$work/async.fixed.s"
@@ -280,6 +303,10 @@ cmp "$work/emit.self.s" "$work/emit.fixed.s"
 $work/lex "$root/seed/hello.pir" | $work/lower.self | $work/emit.self > "$work/hello.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.fixed.s" -o "$work/hello.fixed"
 test "$($work/hello.fixed)" = "hello, plang"
+
+$work/lex "$root/seed/bitwise.pir" | $work/lower.self | $work/emit.self > "$work/bitwise.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.fixed.s" -o "$work/bitwise.fixed"
+test "$($work/bitwise.fixed)" = "bitwise ok"
 
 $work/lex "$root/seed/profile.pir" | $work/lower.self | $work/emit.self > "$work/profile.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.fixed.s" -o "$work/profile.fixed"
