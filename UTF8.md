@@ -50,6 +50,13 @@ the same normalized program. The caller still owns the explicit 40-byte state,
 and the target program still supplies ordinary `channel_recv`; no UTF-8 opcode,
 runtime ABI, module loader, or hidden allocation was introduced.
 
+Names beginning with `__utf8_` are owned by this injected closure. A source
+function with the same name and arity produces the ordinary duplicate-symbol
+diagnostic; the pass does not add a parallel symbol registry. Dependencies stay
+ordinary too: if the program does not provide `channel_recv/2`, its unresolved
+arity-qualified symbol fails at link time. `seed/check-bootstrap.sh` exercises
+both boundaries using only the checked-in assembly seed and the tools it builds.
+
 Inlining only the decoder at two sites has a 690-token lower bound before site
 framing. The injected closure is therefore the selected normal form: one
 feature cost per program plus a small per-site call cost.
