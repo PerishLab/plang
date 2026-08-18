@@ -33,6 +33,9 @@ The emitter binds each `memory` operand to an assembler constant and checks the
 duplicate memory declarations and missing or duplicate `main` definitions are
 rejected by their required `_plang_memory_limit` and `_main` ABI symbols during
 assembly or linking; the closure does not duplicate those symbol tables.
+Static data, function values, and local labels likewise map to deterministic
+assembly symbols. Their missing or duplicate definitions are platform symbol
+errors covered by fixtures rather than a second compiler-side registry.
 
 Every instruction is locally framed by its opcode. Variable-arity calls carry
 their arity explicitly as `call destination function arity arguments...`, so a

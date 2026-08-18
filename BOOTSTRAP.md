@@ -63,6 +63,9 @@ constant expression. Missing or duplicate memory/main forms are covered by the
 platform ABI's required symbols and must fail before execution. The validation
 fixtures exercise the same boundary through the Python, self-hosted, and fixed
 generations.
+Duplicate or unresolved static data, functions, function pointers, and local
+labels follow the same rule: deterministic generated symbols make the platform
+failure observable before execution without a whole-program registry.
 
 Run the runtime, scanner, lexer, decoder, generated-compiler, and fixed-point
 contracts in a disposable build directory with:

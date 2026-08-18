@@ -317,7 +317,33 @@ for source in "$root"/seed/invalid-top-*.pir; do
     echo "$error" | grep -q "$symbol"
 done
 
+for source in "$root"/seed/invalid-symbol-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    case "$name" in
+        invalid-symbol-data-*) symbol=L_data_ ;;
+        invalid-symbol-function-*) symbol=_pir_same ;;
+        invalid-symbol-funcptr-*) symbol=_pir_missing ;;
+        invalid-symbol-label-*) symbol=L_main_here ;;
+    esac
+    $work/lex "$source" | $work/lower | $work/emit > "$work/$name.self.s"
+    set +e
+    error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/$name.self.s" -o "$work/$name.self" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    echo "$error" | grep -q "$symbol"
+done
+
 for source in "$root"/seed/invalid-top-*.pir; do
+    set +e
+    python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
+    status=$?
+    set -e
+    test "$status" = 1
+done
+
+for source in "$root"/seed/invalid-symbol-*.pir; do
     set +e
     python3 "$root/seed/boot.py" "$source" "$work/invalid.py.s" >/dev/null 2>&1
     status=$?
@@ -481,6 +507,25 @@ for source in "$root"/seed/invalid-top-*.pir; do
     case "$name" in
         invalid-top-main-*) symbol=_main ;;
         invalid-top-memory-*) symbol=_plang_memory_limit ;;
+    esac
+    $work/lex "$source" | $work/lower.self | $work/emit.self > "$work/$name.fixed.s"
+    cmp "$work/$name.self.s" "$work/$name.fixed.s"
+    set +e
+    error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/$name.fixed.s" -o "$work/$name.fixed" 2>&1)
+    status=$?
+    set -e
+    test "$status" = 1
+    echo "$error" | grep -q "$symbol"
+done
+
+for source in "$root"/seed/invalid-symbol-*.pir; do
+    name=${source##*/}
+    name=${name%.pir}
+    case "$name" in
+        invalid-symbol-data-*) symbol=L_data_ ;;
+        invalid-symbol-function-*) symbol=_pir_same ;;
+        invalid-symbol-funcptr-*) symbol=_pir_missing ;;
+        invalid-symbol-label-*) symbol=L_main_here ;;
     esac
     $work/lex "$source" | $work/lower.self | $work/emit.self > "$work/$name.fixed.s"
     cmp "$work/$name.self.s" "$work/$name.fixed.s"
