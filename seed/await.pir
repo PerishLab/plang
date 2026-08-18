@@ -1,0 +1,573 @@
+memory 16777216
+bytes ok "await ok\n"
+bytes limited "plang0: memory limit\n"
+bytes invalid "plang0: await contract failed\n"
+
+func scheduler_new 1
+arg %capacity 0
+u64 %zero 0
+u64 %bytes 40
+u64 %scale 8
+u64 %queue_at 0
+u64 %capacity_at 8
+u64 %read_at 16
+u64 %write_at 24
+u64 %count_at 32
+zero %capacity failed
+alloc %scheduler %bytes
+zero %scheduler failed
+mul %queue_bytes %capacity %scale
+alloc %queue %queue_bytes
+zero %queue failed
+store64 %scheduler %queue_at %queue
+store64 %scheduler %capacity_at %capacity
+store64 %scheduler %read_at %zero
+store64 %scheduler %write_at %zero
+store64 %scheduler %count_at %zero
+ret %scheduler
+label failed
+ret %zero
+end
+
+func scheduler_enqueue 2
+arg %scheduler 0
+arg %task 1
+u64 %zero 0
+u64 %one 1
+u64 %scale 8
+u64 %queue_at 0
+u64 %capacity_at 8
+u64 %write_at 24
+u64 %count_at 32
+load64 %capacity %scheduler %capacity_at
+load64 %count %scheduler %count_at
+eq %test %count %capacity
+nonzero %test full
+load64 %queue %scheduler %queue_at
+load64 %write %scheduler %write_at
+mul %offset %write %scale
+store64 %queue %offset %task
+add %write %write %one
+eq %test %write %capacity
+zero %test store
+u64 %write 0
+label store
+add %count %count %one
+store64 %scheduler %write_at %write
+store64 %scheduler %count_at %count
+ret %one
+label full
+ret %zero
+end
+
+func scheduler_next 1
+arg %scheduler 0
+u64 %zero 0
+u64 %one 1
+u64 %scale 8
+u64 %queue_at 0
+u64 %capacity_at 8
+u64 %read_at 16
+u64 %count_at 32
+load64 %count %scheduler %count_at
+zero %count empty
+load64 %queue %scheduler %queue_at
+load64 %read %scheduler %read_at
+mul %offset %read %scale
+load64 %task %queue %offset
+load64 %capacity %scheduler %capacity_at
+add %read %read %one
+eq %test %read %capacity
+zero %test store
+u64 %read 0
+label store
+sub %count %count %one
+store64 %scheduler %read_at %read
+store64 %scheduler %count_at %count
+ret %task
+label empty
+ret %zero
+end
+
+func channel_new 2
+arg %capacity 0
+arg %wait_capacity 1
+u64 %zero 0
+u64 %bytes 88
+u64 %scale 8
+u64 %buffer_at 0
+u64 %capacity_at 8
+u64 %read_at 16
+u64 %write_at 24
+u64 %count_at 32
+u64 %state_at 40
+u64 %waiters_at 48
+u64 %wait_capacity_at 56
+u64 %wait_read_at 64
+u64 %wait_write_at 72
+u64 %wait_count_at 80
+zero %capacity failed
+zero %wait_capacity failed
+alloc %channel %bytes
+zero %channel failed
+alloc %buffer %capacity
+zero %buffer failed
+mul %wait_bytes %wait_capacity %scale
+alloc %waiters %wait_bytes
+zero %waiters failed
+store64 %channel %buffer_at %buffer
+store64 %channel %capacity_at %capacity
+store64 %channel %read_at %zero
+store64 %channel %write_at %zero
+store64 %channel %count_at %zero
+store64 %channel %state_at %zero
+store64 %channel %waiters_at %waiters
+store64 %channel %wait_capacity_at %wait_capacity
+store64 %channel %wait_read_at %zero
+store64 %channel %wait_write_at %zero
+store64 %channel %wait_count_at %zero
+ret %channel
+label failed
+ret %zero
+end
+
+func channel_wait 2
+arg %channel 0
+arg %task 1
+u64 %zero 0
+u64 %one 1
+u64 %scale 8
+u64 %task_scheduler_at 16
+u64 %count_at 32
+u64 %state_at 40
+u64 %waiters_at 48
+u64 %wait_capacity_at 56
+u64 %wait_write_at 72
+u64 %wait_count_at 80
+load64 %count %channel %count_at
+nonzero %count ready
+load64 %state %channel %state_at
+nonzero %state ready
+load64 %wait_capacity %channel %wait_capacity_at
+load64 %wait_count %channel %wait_count_at
+eq %test %wait_count %wait_capacity
+nonzero %test full
+load64 %waiters %channel %waiters_at
+load64 %wait_write %channel %wait_write_at
+mul %offset %wait_write %scale
+store64 %waiters %offset %task
+add %wait_write %wait_write %one
+eq %test %wait_write %wait_capacity
+zero %test store
+u64 %wait_write 0
+label store
+add %wait_count %wait_count %one
+store64 %channel %wait_write_at %wait_write
+store64 %channel %wait_count_at %wait_count
+ret %one
+label ready
+load64 %scheduler %task %task_scheduler_at
+call %test scheduler_enqueue 2 %scheduler %task
+ret %test
+label full
+ret %zero
+end
+
+func channel_wake_one 1
+arg %channel 0
+u64 %zero 0
+u64 %one 1
+u64 %scale 8
+u64 %task_scheduler_at 16
+u64 %waiters_at 48
+u64 %wait_capacity_at 56
+u64 %wait_read_at 64
+u64 %wait_count_at 80
+load64 %wait_count %channel %wait_count_at
+zero %wait_count empty
+load64 %waiters %channel %waiters_at
+load64 %wait_read %channel %wait_read_at
+mul %offset %wait_read %scale
+load64 %task %waiters %offset
+load64 %scheduler %task %task_scheduler_at
+call %test scheduler_enqueue 2 %scheduler %task
+zero %test full
+load64 %wait_capacity %channel %wait_capacity_at
+add %wait_read %wait_read %one
+eq %test %wait_read %wait_capacity
+zero %test store
+u64 %wait_read 0
+label store
+sub %wait_count %wait_count %one
+store64 %channel %wait_read_at %wait_read
+store64 %channel %wait_count_at %wait_count
+ret %one
+label empty
+ret %one
+label full
+ret %zero
+end
+
+func channel_wake_all 1
+arg %channel 0
+u64 %zero 0
+u64 %one 1
+u64 %wait_count_at 80
+label waiter
+load64 %count %channel %wait_count_at
+zero %count done
+call %test channel_wake_one 1 %channel
+zero %test full
+jump waiter
+label done
+ret %one
+label full
+ret %zero
+end
+
+func channel_send 2
+arg %channel 0
+arg %value 1
+u64 %zero 0
+u64 %one 1
+u64 %closed 2
+u64 %buffer_at 0
+u64 %capacity_at 8
+u64 %write_at 24
+u64 %count_at 32
+u64 %state_at 40
+load64 %state %channel %state_at
+nonzero %state rejected
+load64 %capacity %channel %capacity_at
+load64 %count %channel %count_at
+eq %test %count %capacity
+nonzero %test full
+load64 %buffer %channel %buffer_at
+load64 %write %channel %write_at
+store8 %buffer %write %value
+add %write %write %one
+eq %test %write %capacity
+zero %test store
+u64 %write 0
+label store
+add %count %count %one
+store64 %channel %write_at %write
+store64 %channel %count_at %count
+call %test channel_wake_one 1 %channel
+ret %one
+label rejected
+ret %closed
+label full
+ret %zero
+end
+
+func channel_recv 2
+arg %channel 0
+arg %target 1
+u64 %pending 0
+u64 %value_status 1
+u64 %closed 2
+u64 %failed 3
+u64 %zero 0
+u64 %one 1
+u64 %buffer_at 0
+u64 %capacity_at 8
+u64 %read_at 16
+u64 %count_at 32
+u64 %state_at 40
+load64 %count %channel %count_at
+zero %count empty
+load64 %buffer %channel %buffer_at
+load64 %read %channel %read_at
+load8 %value %buffer %read
+store8 %target %zero %value
+load64 %capacity %channel %capacity_at
+add %read %read %one
+eq %test %read %capacity
+zero %test store
+u64 %read 0
+label store
+sub %count %count %one
+store64 %channel %read_at %read
+store64 %channel %count_at %count
+ret %value_status
+label empty
+load64 %state %channel %state_at
+zero %state wait
+eq %test %state %one
+nonzero %test ended
+ret %failed
+label ended
+ret %closed
+label wait
+ret %pending
+end
+
+func channel_close 1
+arg %channel 0
+u64 %zero 0
+u64 %one 1
+u64 %failed 2
+u64 %state_at 40
+load64 %state %channel %state_at
+eq %test %state %failed
+nonzero %test no
+nonzero %state wake
+store64 %channel %state_at %one
+label wake
+call %test channel_wake_all 1 %channel
+ret %test
+label no
+ret %zero
+end
+
+func channel_fail 1
+arg %channel 0
+u64 %zero 0
+u64 %one 1
+u64 %failed 2
+u64 %state_at 40
+load64 %state %channel %state_at
+eq %test %state %one
+nonzero %test no
+nonzero %state wake
+store64 %channel %state_at %failed
+label wake
+call %test channel_wake_all 1 %channel
+ret %test
+label no
+ret %zero
+end
+
+func task_new 4
+arg %kind 0
+arg %scheduler 1
+arg %channel 2
+arg %target 3
+u64 %zero 0
+u64 %bytes 48
+u64 %kind_at 0
+u64 %pc_at 8
+u64 %scheduler_at 16
+u64 %channel_at 24
+u64 %target_at 32
+u64 %done_at 40
+alloc %task %bytes
+zero %task failed
+store64 %task %kind_at %kind
+store64 %task %pc_at %zero
+store64 %task %scheduler_at %scheduler
+store64 %task %channel_at %channel
+store64 %task %target_at %target
+store64 %task %done_at %zero
+ret %task
+label failed
+ret %zero
+end
+
+func consumer_resume 1
+arg %task 0
+u64 %zero 0
+u64 %one 1
+u64 %closed 2
+u64 %failed 3
+u64 %expected 3
+u64 %fd 1
+u64 %pc_at 8
+u64 %scheduler_at 16
+u64 %channel_at 24
+u64 %target_at 32
+u64 %done_at 40
+load64 %channel %task %channel_at
+load64 %target %task %target_at
+call %status channel_recv 2 %channel %target
+eq %test %status %zero
+nonzero %test wait
+eq %test %status %one
+nonzero %test value
+eq %test %status %closed
+nonzero %test ended
+jump bad
+label wait
+call %test channel_wait 2 %channel %task
+zero %test bad
+ret %zero
+label value
+write %wrote %fd %target %one
+load64 %pc %task %pc_at
+add %pc %pc %one
+store64 %task %pc_at %pc
+load64 %scheduler %task %scheduler_at
+call %test scheduler_enqueue 2 %scheduler %task
+zero %test bad
+ret %zero
+label ended
+load64 %pc %task %pc_at
+ne %test %pc %expected
+nonzero %test bad
+store64 %task %done_at %one
+out ok
+ret %one
+label bad
+store64 %task %done_at %one
+err invalid
+ret %failed
+end
+
+func producer_resume 1
+arg %task 0
+u64 %zero 0
+u64 %one 1
+u64 %failed 3
+u64 %a 65
+u64 %b 66
+u64 %c 67
+u64 %channel_at 24
+u64 %done_at 40
+load64 %channel %task %channel_at
+call %status channel_send 2 %channel %a
+ne %test %status %one
+nonzero %test bad
+call %status channel_send 2 %channel %b
+ne %test %status %one
+nonzero %test bad
+call %status channel_send 2 %channel %c
+ne %test %status %one
+nonzero %test bad
+call %status channel_close 1 %channel
+zero %status bad
+store64 %task %done_at %one
+ret %one
+label bad
+store64 %task %done_at %one
+err invalid
+ret %failed
+end
+
+func task_resume 1
+arg %task 0
+u64 %one 1
+u64 %kind_at 0
+load64 %kind %task %kind_at
+eq %test %kind %one
+nonzero %test consumer
+call %result producer_resume 1 %task
+ret %result
+label consumer
+call %result consumer_resume 1 %task
+ret %result
+end
+
+func scheduler_run 2
+arg %scheduler 0
+arg %budget 1
+u64 %zero 0
+u64 %one 1
+u64 %failed 3
+u64 %steps 0
+label task
+eq %test %steps %budget
+nonzero %test exhausted
+call %next scheduler_next 1 %scheduler
+zero %next idle
+call %result task_resume 1 %next
+eq %test %result %failed
+nonzero %test exhausted
+add %steps %steps %one
+jump task
+label idle
+ret %one
+label exhausted
+ret %zero
+end
+
+func wake_contract 0
+u64 %zero 0
+u64 %one 1
+u64 %scheduler_capacity 4
+u64 %channel_capacity 1
+u64 %wait_capacity 2
+u64 %value 65
+call %scheduler scheduler_new 1 %scheduler_capacity
+zero %scheduler bad
+call %channel channel_new 2 %channel_capacity %wait_capacity
+zero %channel bad
+alloc %target %one
+zero %target bad
+call %first task_new 4 %one %scheduler %channel %target
+zero %first bad
+call %second task_new 4 %one %scheduler %channel %target
+zero %second bad
+call %status channel_wait 2 %channel %first
+zero %status bad
+call %status channel_wait 2 %channel %second
+zero %status bad
+call %status channel_send 2 %channel %value
+zero %status bad
+call %next scheduler_next 1 %scheduler
+ne %test %next %first
+nonzero %test bad
+call %next scheduler_next 1 %scheduler
+nonzero %next bad
+call %status channel_close 1 %channel
+zero %status bad
+call %next scheduler_next 1 %scheduler
+ne %test %next %second
+nonzero %test bad
+call %next scheduler_next 1 %scheduler
+nonzero %next bad
+call %failed_channel channel_new 2 %channel_capacity %wait_capacity
+zero %failed_channel bad
+call %status channel_wait 2 %failed_channel %first
+zero %status bad
+call %status channel_fail 1 %failed_channel
+zero %status bad
+call %next scheduler_next 1 %scheduler
+ne %test %next %first
+nonzero %test bad
+call %next scheduler_next 1 %scheduler
+nonzero %next bad
+ret %one
+label bad
+ret %zero
+end
+
+func main 0
+u64 %zero 0
+u64 %one 1
+u64 %two 2
+u64 %scheduler_capacity 8
+u64 %channel_capacity 3
+u64 %wait_capacity 4
+u64 %budget 32
+call %status wake_contract 0
+zero %status invalid
+call %scheduler scheduler_new 1 %scheduler_capacity
+zero %scheduler limited
+call %channel channel_new 2 %channel_capacity %wait_capacity
+zero %channel limited
+alloc %target %one
+zero %target limited
+call %consumer task_new 4 %one %scheduler %channel %target
+zero %consumer limited
+call %producer task_new 4 %two %scheduler %channel %zero
+zero %producer limited
+call %status scheduler_enqueue 2 %scheduler %consumer
+zero %status invalid
+call %status scheduler_enqueue 2 %scheduler %producer
+zero %status invalid
+call %status scheduler_run 2 %scheduler %budget
+zero %status invalid
+u64 %done_at 40
+load64 %done %consumer %done_at
+zero %done invalid
+load64 %done %producer %done_at
+zero %done invalid
+exit 0
+label limited
+err limited
+exit 1
+label invalid
+err invalid
+exit 1
+end

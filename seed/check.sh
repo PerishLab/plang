@@ -14,6 +14,7 @@ python3 "$root/seed/boot.py" "$root/seed/decode.pir" "$work/decode.s"
 python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
 python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
+python3 "$root/seed/boot.py" "$root/seed/await.pir" "$work/await.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/exhaust.s" -o "$work/exhaust"
@@ -24,10 +25,12 @@ python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.s" -o "$work/await"
 
 hello=$($work/hello)
 test "$hello" = "hello, plang"
 test "$($work/channel)" = "channel ok"
+test "$($work/await)" = "ABCawait ok"
 
 set +e
 error=$($work/exhaust 2>&1)
@@ -113,3 +116,7 @@ test "$($work/hello.fixed)" = "hello, plang"
 $work/lex "$root/seed/channel.pir" | $work/lower.self | $work/emit.self > "$work/channel.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.fixed.s" -o "$work/channel.fixed"
 test "$($work/channel.fixed)" = "channel ok"
+
+$work/lex "$root/seed/await.pir" | $work/lower.self | $work/emit.self > "$work/await.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.fixed.s" -o "$work/await.fixed"
+test "$($work/await.fixed)" = "ABCawait ok"

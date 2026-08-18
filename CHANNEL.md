@@ -41,3 +41,6 @@ projection can suspend on `pending`, and a scheduler can wake it when send or a
 terminal transition changes the channel. Neither requires changing this state
 machine. Multi-producer safety, cancellation propagation, typed elements, and
 error payloads remain outside this first contract.
+
+`AWAIT.md` extends this state machine with fixed-capacity waiter and runnable
+queues and demonstrates the first non-polling default-await lowering target.
