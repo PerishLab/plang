@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+set -o pipefail
 
 meta=$1
 manifest=$2
@@ -12,18 +13,19 @@ run_work=$(mktemp -d)
 trap 'rm -rf "$run_work"' EXIT
 
 "$meta" < "$manifest" > "$run_work/order"
-current=$input
-index=0
+test -s "$run_work/order"
 
-while IFS= read -r name; do
-    test -n "$name"
-    pass="$pass_dir/$name$suffix"
-    test -x "$pass"
-    next="$run_work/$index.tokens"
-    "$pass" < "$current" > "$next"
-    current=$next
-    index=$((index + 1))
-done < "$run_work/order"
+run_chain() {
+    if IFS= read -r name <&3; then
+        test -n "$name"
+        pass="$pass_dir/$name$suffix"
+        test -x "$pass"
+        "$pass" | run_chain
+    else
+        cat
+    fi
+}
 
-test "$index" -gt 0
-cp "$current" "$output"
+exec 3< "$run_work/order"
+run_chain < "$input" > "$output"
+exec 3<&-

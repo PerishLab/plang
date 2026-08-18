@@ -36,11 +36,13 @@ async
 ```
 
 `seed/run-atoms.sh` is a thin platform transport adapter. It asks the kernel for
-the order, executes each already-built streaming pass into a disposable file,
-and never interprets the manifest graph itself. PIR1 has no process-spawn
-primitive yet, so process creation and pipe transport remain outside the
-closure alongside assembler, linker, loader, and ABI. The ordering decision is
-inside the closure.
+the order, then recursively constructs one real Unix pipeline over file
+descriptor 3. Atom output is never materialized between passes: only the
+at-most-eight-line order file and bounded kernel pipe buffers exist. `pipefail`
+preserves any stage failure. The adapter never interprets the manifest graph
+itself. PIR1 has no process-spawn primitive yet, so process creation and pipe
+transport remain outside the closure alongside assembler, linker, loader, and
+ABI. The ordering decision is inside the closure.
 
 The executable contracts prove:
 
