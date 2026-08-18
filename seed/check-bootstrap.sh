@@ -27,6 +27,14 @@ test "$("$work/out/await")" = "ABCawait ok
 ABCcollect ok"
 test "$("$work/out/utf8-stream")" = "utf8 stream ok"
 
+"$work/out/lex" "$root/seed/compose-main.pir" > "$work/compose.tokens"
+"$work/out/lex" "$root/seed/compose-library.pir" >> "$work/compose.tokens"
+"$work/out/lower" < "$work/compose.tokens" |
+    "$work/out/emit" > "$work/compose.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" \
+    "$work/compose.s" -o "$work/compose"
+"$work/compose"
+
 for fixture in utf8-helper-collision utf8-helper-missing-channel; do
     "$work/out/lex" "$root/seed/$fixture.pir" |
         "$work/out/utf8-pass" |
