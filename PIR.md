@@ -71,6 +71,11 @@ decode, and emit and requires exact equality. `seed/bitwise.pir` and
 semantics through the Python, self-hosted, and fixed-point generations.
 `seed/capability.pir` does the same for the operand boundary: full-width u64
 constants plus direct and indirect calls with eight arguments.
+Function declarations wider than eight are rejected by both the oracle and
+lowering pass. The streaming emitter publishes each current function arity as
+an assembler-time constant; every `arg` emits a conditional `.error`, so an
+index outside that function's arity fails before linking or execution without
+adding compiler-side persistent state.
 
 `seed/async.pir` is the first self-hosted semantic-atom pass in front of that
 pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers

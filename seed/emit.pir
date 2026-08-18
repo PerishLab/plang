@@ -13,6 +13,9 @@ bytes texthead ".section __TEXT,__text,regular,pure_instructions\n.p2align 2\n.g
 bytes mainname "_main"
 bytes pirname "_pir_"
 bytes prologue ":\n    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n    sub sp, sp, #240\n"
+bytes arityset ".set L_pir_current_arity, "
+bytes argchecka "    .if "
+bytes argcheckb " >= L_pir_current_arity\n    .error \"plang0: argument index outside arity\"\n    .endif\n"
 bytes movz "    movz x9, #("
 bytes immlow " & 0xffff)\n"
 bytes imm16a "    .if (("
@@ -279,6 +282,11 @@ call %alen next 3 %fd %a %capacity
 call %blen next 3 %fd %b %capacity
 zero %alen invalid
 zero %blen invalid
+data %piece %piecesize arityset
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
 data %piece %piecesize texthead
 call %wrote put 2 %piece %piecesize
 data %piece %piecesize mainword
@@ -384,6 +392,11 @@ jump invalid
 label arg
 call %alen next 3 %fd %a %capacity
 call %blen next 3 %fd %b %capacity
+data %piece %piecesize argchecka
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize argcheckb
+call %wrote put 2 %piece %piecesize
 data %piece %piecesize arghead
 call %wrote put 2 %piece %piecesize
 call %wrote put 2 %b %blen

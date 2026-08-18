@@ -28,6 +28,10 @@ lower, decode, and emit. `scan.pir` exercises unsigned `lt`, `argv`, `open`, and
 `close` through the Python, self-hosted, and fixed-point generations.
 `capability.pir` exercises maximum-width u64 construction, eight-argument direct
 calls, and eight-argument indirect invokes through the same three generations.
+The lowerer rejects function declarations wider than eight. Argument indices
+are checked against a per-function assembler constant, keeping that local
+validation outside runtime code and avoiding mutable cross-helper compiler
+state.
 
 `lower.pir` assigns named registers to explicit frame slots and scopes labels by
 function while retaining only one function's small symbol map. `emit.pir`

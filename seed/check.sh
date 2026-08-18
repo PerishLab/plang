@@ -273,6 +273,14 @@ $work/lex "$root/seed/capability.pir" | $work/lower | $work/emit > "$work/capabi
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.self.s" -o "$work/capability.self"
 test "$($work/capability.self)" = "capability ok"
 
+$work/lex "$root/seed/invalid-arg-index.pir" | $work/lower | $work/emit > "$work/invalid-arg-index.self.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-arg-index.self.s" -o "$work/invalid-arg-index.self" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "error: plang0: argument index outside arity"
+
 $work/lex "$root/seed/scan.pir" | $work/lower | $work/emit > "$work/scan.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.self.s" -o "$work/scan.self"
 test "$($work/scan.self "$root/seed/hello.pir")" = "scan ok"
@@ -299,6 +307,12 @@ test "$error" = "plang0: lowering rejected token stream"
 
 set +e
 python3 "$root/seed/boot.py" "$root/seed/invalid-func-arity.pir" "$work/invalid.py.s" >/dev/null 2>&1
+status=$?
+set -e
+test "$status" = 1
+
+set +e
+python3 "$root/seed/boot.py" "$root/seed/invalid-arg-index.pir" "$work/invalid.py.s" >/dev/null 2>&1
 status=$?
 set -e
 test "$status" = 1
@@ -370,6 +384,15 @@ test "$($work/bitwise.fixed)" = "bitwise ok"
 $work/lex "$root/seed/capability.pir" | $work/lower.self | $work/emit.self > "$work/capability.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.fixed.s" -o "$work/capability.fixed"
 test "$($work/capability.fixed)" = "capability ok"
+
+$work/lex "$root/seed/invalid-arg-index.pir" | $work/lower.self | $work/emit.self > "$work/invalid-arg-index.fixed.s"
+cmp "$work/invalid-arg-index.self.s" "$work/invalid-arg-index.fixed.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-arg-index.fixed.s" -o "$work/invalid-arg-index.fixed" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "error: plang0: argument index outside arity"
 
 $work/lex "$root/seed/scan.pir" | $work/lower.self | $work/emit.self > "$work/scan.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.fixed.s" -o "$work/scan.fixed"
