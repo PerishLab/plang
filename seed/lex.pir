@@ -1,4 +1,4 @@
-memory 16777216
+memory 8192
 bytes usage "plang0: source path required\n"
 bytes opened "plang0: source open failed\n"
 bytes limited "plang0: memory limit\n"

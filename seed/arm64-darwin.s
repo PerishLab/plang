@@ -1,5 +1,3 @@
-.equ PLANG_MEMORY_LIMIT, 16777216
-
 .section __TEXT,__text,regular,pure_instructions
 .p2align 2
 .globl _plang_alloc
@@ -12,7 +10,9 @@ _plang_alloc:
     ldr x2, [x1]
     adds x3, x2, x0
     b.cs L_alloc_fail
-    movz x4, #256, lsl #16
+    adrp x4, _plang_memory_limit@PAGE
+    add x4, x4, _plang_memory_limit@PAGEOFF
+    ldr x4, [x4]
     cmp x3, x4
     b.hi L_alloc_fail
     str x3, [x1]
@@ -85,8 +85,3 @@ L_memory_error:
 .p2align 3
 _plang_used:
     .quad 0
-
-.section __DATA,__bss
-.p2align 4
-_plang_arena:
-    .space PLANG_MEMORY_LIMIT

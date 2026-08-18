@@ -4,7 +4,8 @@ PIR1 is the disposable closure language accepted by `seed/boot.py`. It is not
 the plang surface language. It exists only to express the first compiler in a
 form that the first compiler can later rebuild.
 
-A program declares the 16 MiB seed profile, static byte strings, and functions.
+A program declares a power-of-two arena from 4 KiB through 16 MiB, static byte
+strings, and functions.
 `main` receives the platform `argc` and `argv` when declared with arity two.
 Other functions receive up to eight arguments. Each function owns at most
 thirty named u64 virtual registers backed by one fixed stack frame.

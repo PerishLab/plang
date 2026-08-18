@@ -1,4 +1,4 @@
-memory 16777216
+memory 8192
 bytes dash "-"
 bytes newline "\n"
 bytes limited "plang0: memory limit\n"

@@ -1,4 +1,4 @@
-memory 16777216
+memory 8192
 bytes asyncword "@async"
 bytes collectword "@stream.collect"
 bytes loops "__collect_loop_0\n__collect_loop_1\n__collect_loop_2\n__collect_loop_3\n__collect_loop_4\n__collect_loop_5\n__collect_loop_6\n__collect_loop_7\n"

@@ -1,7 +1,9 @@
 # Bootstrap
 
-The first seed targets arm64 Darwin and owns one 16 MiB arena. Python translates
-a deliberately small linear IR into assembly. The platform assembler, linker,
+The first seed targets arm64 Darwin. Each program declares a power-of-two arena
+from 4 KiB through 16 MiB; the compiler passes currently use 8 KiB or 32 KiB,
+while runtime fixtures may retain wider profiles. Python translates a
+deliberately small linear IR into assembly. The platform assembler, linker,
 loader, and ABI remain outside the closure.
 
 PIR1 has static bytes, functions of up to eight arguments, thirty local virtual
@@ -72,6 +74,12 @@ rejected fixture rather than an assumed commutation law. See `COLLECT.md`.
 manifest, rejects unresolved emissions and cycles, and reaches its own
 byte-identical fixed point. A thin shell adapter remains the platform transport
 for starting the ordered streaming executables. See `META.md`.
+
+Compiler-pass arenas are now program-owned profiles rather than one runtime
+constant: lex, meta, collect, async, and lower use 8 KiB; emit uses 32 KiB.
+`seed/profile.pir` proves a 4 KiB arena through both compiler generations, and
+`seed/report.sh` checks fixed-allocation headroom and repeated helpers. See
+`CLOSURE.md` for the measured baseline and the decision to defer pass fusion.
 
 Tasks carry their resume function directly through PIR1's `funcptr` and
 `invoke` operations, so the scheduler contains no task-kind switch. The trusted

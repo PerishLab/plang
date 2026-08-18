@@ -6,6 +6,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 python3 "$root/seed/boot.py" "$root/seed/hello.pir" "$work/hello.s"
+python3 "$root/seed/boot.py" "$root/seed/profile.pir" "$work/profile.s"
 python3 "$root/seed/boot.py" "$root/seed/exhaust.pir" "$work/exhaust.s"
 python3 "$root/seed/boot.py" "$root/seed/overflow.pir" "$work/overflow.s"
 python3 "$root/seed/boot.py" "$root/seed/scan.pir" "$work/scan.s"
@@ -19,6 +20,7 @@ python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.s" -o "$work/profile"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/exhaust.s" -o "$work/exhaust"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/overflow.s" -o "$work/overflow"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.s" -o "$work/scan"
@@ -38,6 +40,7 @@ $work/lower < "$work/await.atoms.tokens" | $work/emit > "$work/await.s"
 
 hello=$($work/hello)
 test "$hello" = "hello, plang"
+test "$($work/profile)" = "profile ok"
 test "$($work/channel)" = "channel ok"
 test "$($work/await)" = "ABCawait ok
 ABCcollect ok"
@@ -221,6 +224,10 @@ $work/lex "$root/seed/hello.pir" | $work/lower.self | $work/emit.self > "$work/h
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.fixed.s" -o "$work/hello.fixed"
 test "$($work/hello.fixed)" = "hello, plang"
 
+$work/lex "$root/seed/profile.pir" | $work/lower.self | $work/emit.self > "$work/profile.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.fixed.s" -o "$work/profile.fixed"
+test "$($work/profile.fixed)" = "profile ok"
+
 $work/lex "$root/seed/channel.pir" | $work/lower.self | $work/emit.self > "$work/channel.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.fixed.s" -o "$work/channel.fixed"
 test "$($work/channel.fixed)" = "channel ok"
@@ -231,3 +238,5 @@ $work/lower.self < "$work/await.fixed.atoms" | $work/emit.self > "$work/await.fi
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/await.fixed.s" -o "$work/await.fixed"
 test "$($work/await.fixed)" = "ABCawait ok
 ABCcollect ok"
+
+"$root/seed/report.sh" > /dev/null

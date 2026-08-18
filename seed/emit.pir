@@ -1,7 +1,9 @@
-memory 16777216
+memory 32768
 bytes top "memory M\nbytes B\nfunc F\n"
 bytes body "arg A\nu64 U\ndata D\nfuncptr F\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nload64 Q\nstore8 H\nstore64 V\nalloc C\nread I\nwrite I\ncall K\ninvoke Y\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
 bytes constsec ".section __TEXT,__const\n"
+bytes memorya ".section __DATA,__data\n.p2align 3\n.globl _plang_memory_limit\n_plang_memory_limit:\n    .quad "
+bytes memoryb "\n.section __DATA,__bss\n.p2align 4\n.globl _plang_arena\n_plang_arena:\n    .space "
 bytes datahead ".p2align 0\nL_data_"
 bytes datamid ":\n    .ascii "
 bytes dataset "\n    .set L_size_"
@@ -220,6 +222,16 @@ jump invalid
 label memory
 call %length next 3 %fd %a %capacity
 zero %length invalid
+data %piece %piecesize memorya
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %length
+data %piece %piecesize memoryb
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %length
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize constsec
+call %wrote put 2 %piece %piecesize
 jump top
 label bytes
 call %alen next 3 %fd %a %capacity

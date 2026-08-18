@@ -1,4 +1,4 @@
-memory 16777216
+memory 8192
 bytes top "memory 1\nbytes 2\nfunc F\n"
 bytes body "arg 2\nu64 2\ndata 3\nfuncptr 2\nadd 3\nsub 3\nmul 3\nand 3\nor 3\nxor 3\nshl 3\nshr 3\neq 3\nne 3\nlt 3\nle 3\nslt 3\nload8 3\nload64 3\nstore8 3\nstore64 3\nalloc 2\nargv 3\nread 4\nwrite 4\nopen 2\nclose 2\ncall C\ninvoke I\nlabel L\njump L\nzero Z\nnonzero Z\nout 1\nerr 1\nexit 1\nret 1\nend E\n"
 bytes slots "8\n16\n24\n32\n40\n48\n56\n64\n72\n80\n88\n96\n104\n112\n120\n128\n136\n144\n152\n160\n168\n176\n184\n192\n200\n208\n216\n224\n232\n240\n"

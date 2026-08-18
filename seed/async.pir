@@ -1,4 +1,4 @@
-memory 16777216
+memory 8192
 bytes asyncword "@async"
 bytes stateword "@state"
 bytes awaitword "@await.recv"

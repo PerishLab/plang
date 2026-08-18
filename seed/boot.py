@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 
 
-LIMIT = 16 * 1024 * 1024
+MIN_MEMORY = 4 * 1024
+MAX_MEMORY = 16 * 1024 * 1024
 NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 REGISTER = re.compile(r"^%[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -41,7 +42,7 @@ def parse(path):
     data = {}
     funcs = []
     active = None
-    memory = False
+    memory = None
     for line, raw in enumerate(path.read_text().splitlines(), 1):
         text = raw.strip()
         if not text or text.startswith("#"):
@@ -63,9 +64,16 @@ def parse(path):
             continue
         parts = text.split()
         if parts[0] == "memory" and active is None:
-            if memory or len(parts) != 2 or number(path, line, parts[1]) != LIMIT:
-                fail(path, line, f"seed profile requires one memory {LIMIT}")
-            memory = True
+            if memory is not None or len(parts) != 2:
+                fail(path, line, "program requires one memory declaration")
+            value = number(path, line, parts[1])
+            if value < MIN_MEMORY or value > MAX_MEMORY or value & (value - 1):
+                fail(
+                    path,
+                    line,
+                    f"memory must be a power of two from {MIN_MEMORY} through {MAX_MEMORY}",
+                )
+            memory = value
             continue
         if parts[0] == "func" and active is None:
             if len(parts) != 3:
@@ -88,14 +96,14 @@ def parse(path):
         active["code"].append((parts, line))
     if active is not None:
         fail(path, active["line"], f"function {active['name']} has no end")
-    if not memory:
+    if memory is None:
         fail(path, 0, "missing memory declaration")
     names = [func["name"] for func in funcs]
     if len(names) != len(set(names)):
         fail(path, 0, "duplicate function")
     if names.count("main") != 1:
         fail(path, 0, "program requires one main function")
-    return data, funcs
+    return memory, data, funcs
 
 
 def immediate(reg, value):
@@ -335,7 +343,7 @@ def emit_func(path, data, functions, func):
     return out
 
 
-def emit(path, data, funcs):
+def emit(path, memory, data, funcs):
     functions = {func["name"]: func["arity"] for func in funcs}
     out = [".section __TEXT,__text,regular,pure_instructions"]
     for func in funcs:
@@ -345,6 +353,20 @@ def emit(path, data, funcs):
         out.extend([".p2align 0", f"L_data_{key}:"])
         if value:
             out.append("    .byte " + ", ".join(str(byte) for byte in value))
+    out.extend(
+        [
+            ".section __DATA,__data",
+            ".p2align 3",
+            ".globl _plang_memory_limit",
+            "_plang_memory_limit:",
+            f"    .quad {memory}",
+            ".section __DATA,__bss",
+            ".p2align 4",
+            ".globl _plang_arena",
+            "_plang_arena:",
+            f"    .space {memory}",
+        ]
+    )
     return "\n".join(out) + "\n"
 
 
@@ -353,8 +375,8 @@ def main():
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    data, funcs = parse(args.source)
-    args.output.write_text(emit(args.source, data, funcs))
+    memory, data, funcs = parse(args.source)
+    args.output.write_text(emit(args.source, memory, data, funcs))
 
 
 if __name__ == "__main__":
