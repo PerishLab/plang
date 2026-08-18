@@ -20,8 +20,8 @@ unchanged:
 the function-local state labels. `@state` materializes one such label.
 `@await.recv` stores its resume state before polling the channel. A ready result
 continues immediately; a pending result registers the task as a channel waiter
-and returns zero to the scheduler. Failed waiter registration returns the
-explicit PIR1 failure status `3`.
+and returns zero to the scheduler. Failed waiter registration replaces
+`STATUS` with the explicit failure status `3` and falls through to the caller.
 
 The atom's dependencies and observable effects are deliberately narrow:
 
@@ -30,7 +30,7 @@ dependency   channel_recv(channel, target), channel_wait(channel, task)
 task read    load pc at PC_OFFSET during dispatch
 task write   store RESUME_STATE at PC_OFFSET before receive
 pending      register waiter, then ret 0
-wait failure ret 3
+wait failure set STATUS to 3 and fall through
 ready/closed/failed receive status remains in STATUS and falls through
 ```
 

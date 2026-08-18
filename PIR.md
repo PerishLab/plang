@@ -69,6 +69,10 @@ pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers
 without retaining an AST, and is itself rebuilt to a byte-identical fixed
 point. See `ASYNC.md` for its bounds and explicit failure contract.
 
+`seed/collect.pir` precedes async lowering and expands bounded
+`@stream.collect` projections into `@await.recv`. This establishes the first
+tested dependency edge between atom passes. See `COLLECT.md`.
+
 The emitter implements only the PIR1 operations needed by the pair and hello
 fixture, with calls capped at four arguments and small immediates emitted through
 one `movz`. `seed/boot.py` remains the broader PIR1 oracle. The lowering pass is

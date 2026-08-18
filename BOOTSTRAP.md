@@ -63,6 +63,11 @@ self-hosted atom pass. `seed/async.pir` expands bounded `@async`, `@state`, and
 the same byte-identical compiler fixed point. See `ASYNC.md` for the local
 framing and resource contract.
 
+`seed/collect.pir` is the second self-hosted atom pass. It lowers a bounded byte
+stream projection into `@await.recv`, so its executable dependency is
+`collect -> async -> lower -> emit`; reversing the atom passes is an explicit
+rejected fixture rather than an assumed commutation law. See `COLLECT.md`.
+
 Tasks carry their resume function directly through PIR1's `funcptr` and
 `invoke` operations, so the scheduler contains no task-kind switch. The trusted
 primitive and the future checked surface boundary are described in

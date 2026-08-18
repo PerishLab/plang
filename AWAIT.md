@@ -31,6 +31,13 @@ consumer -> A/yield -> B/yield -> C/yield -> closed/done
 The output is `ABCawait ok`. A separate two-reader contract proves that a value
 wakes exactly one waiter while close and failure wake the remaining waiters.
 
+A second scheduled consumer uses `@stream.collect` over another `ABC` channel.
+It suspends before the producer runs, wakes once, drains the finite stream into
+one preallocated collector, and prints `ABCcollect ok`. Separate terminal
+contracts prove a drained failed channel produces status `3` and the first byte
+beyond collector capacity produces status `4`. See `COLLECT.md` for the
+descriptor ABI and pass-order law.
+
 This is the intended compiler shape for a default-await projection: local values
 that cross suspension live in the task record, the resume label is represented
 by its program counter, and `pending` becomes waiter registration plus return.

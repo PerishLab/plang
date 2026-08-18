@@ -1,5 +1,6 @@
 memory 16777216
 bytes ok "await ok\n"
+bytes collect_ok "collect ok\n"
 bytes limited "plang0: memory limit\n"
 bytes invalid "plang0: await contract failed\n"
 
@@ -367,6 +368,28 @@ label failed
 ret %zero
 end
 
+func collector_new 1
+arg %capacity 0
+u64 %zero 0
+u64 %bytes 32
+u64 %buffer_at 0
+u64 %capacity_at 8
+u64 %length_at 16
+u64 %scratch_at 24
+zero %capacity failed
+alloc %collector %bytes
+zero %collector failed
+alloc %buffer %capacity
+zero %buffer failed
+store64 %collector %buffer_at %buffer
+store64 %collector %capacity_at %capacity
+store64 %collector %length_at %zero
+store64 %collector %scratch_at %zero
+ret %collector
+label failed
+ret %zero
+end
+
 func consumer_resume 1
 arg %task 0
 @async %task 8 1
@@ -410,6 +433,50 @@ label bad
 store64 %task %done_at %one
 err invalid
 ret %failed
+end
+
+func collect_resume 1
+arg %task 0
+@async %task 8 1
+@state 0
+u64 %one 1
+u64 %closed 2
+u64 %expected 3
+u64 %offset 24
+load64 %channel %task %offset
+u64 %offset 32
+load64 %collector %task %offset
+@stream.collect %status %channel %collector %task 0
+ne %test %status %closed
+nonzero %test bad
+u64 %offset 16
+load64 %length %collector %offset
+ne %test %length %expected
+nonzero %test bad
+u64 %offset 0
+load64 %buffer %collector %offset
+write %wrote %one %buffer %length
+u64 %offset 40
+store64 %task %offset %one
+out collect_ok
+ret %one
+label bad
+u64 %offset 40
+store64 %task %offset %one
+err invalid
+ret %expected
+end
+
+func collect_status 1
+arg %task 0
+@async %task 8 1
+@state 0
+u64 %offset 24
+load64 %channel %task %offset
+u64 %offset 32
+load64 %collector %task %offset
+@stream.collect %status %channel %collector %task 0
+ret %status
 end
 
 func producer_resume 1
@@ -470,6 +537,47 @@ jump task
 label idle
 ret %one
 label exhausted
+ret %zero
+end
+
+func collect_terminal_contract 0
+u64 %zero 0
+u64 %one 1
+u64 %two 2
+u64 %failed 3
+u64 %full 4
+u64 %a 65
+u64 %b 66
+call %channel channel_new 2 %two %one
+zero %channel bad
+call %collector collector_new 1 %one
+zero %collector bad
+call %status channel_send 2 %channel %a
+ne %test %status %one
+nonzero %test bad
+call %status channel_send 2 %channel %b
+ne %test %status %one
+nonzero %test bad
+call %status channel_close 1 %channel
+zero %status bad
+call %task task_new 4 %zero %zero %channel %collector
+zero %task bad
+call %status collect_status 1 %task
+ne %test %status %full
+nonzero %test bad
+call %channel channel_new 2 %one %one
+zero %channel bad
+call %collector collector_new 1 %one
+zero %collector bad
+call %status channel_fail 1 %channel
+zero %status bad
+call %task task_new 4 %zero %zero %channel %collector
+zero %task bad
+call %status collect_status 1 %task
+ne %test %status %failed
+nonzero %test bad
+ret %one
+label bad
 ret %zero
 end
 
@@ -535,6 +643,8 @@ u64 %wait_capacity 4
 u64 %budget 32
 call %status wake_contract 0
 zero %status invalid
+call %status collect_terminal_contract 0
+zero %status invalid
 funcptr %consumer_resume consumer_resume
 funcptr %producer_resume producer_resume
 call %scheduler scheduler_new 1 %scheduler_capacity
@@ -554,6 +664,27 @@ zero %status invalid
 call %status scheduler_run 2 %scheduler %budget
 zero %status invalid
 u64 %done_at 40
+load64 %done %consumer %done_at
+zero %done invalid
+load64 %done %producer %done_at
+zero %done invalid
+funcptr %consumer_resume collect_resume
+call %scheduler scheduler_new 1 %scheduler_capacity
+zero %scheduler limited
+call %channel channel_new 2 %channel_capacity %wait_capacity
+zero %channel limited
+call %collector collector_new 1 %channel_capacity
+zero %collector limited
+call %consumer task_new 4 %consumer_resume %scheduler %channel %collector
+zero %consumer limited
+call %producer task_new 4 %producer_resume %scheduler %channel %zero
+zero %producer limited
+call %status scheduler_enqueue 2 %scheduler %consumer
+zero %status invalid
+call %status scheduler_enqueue 2 %scheduler %producer
+zero %status invalid
+call %status scheduler_run 2 %scheduler %budget
+zero %status invalid
 load64 %done %consumer %done_at
 zero %done invalid
 load64 %done %producer %done_at
