@@ -39,16 +39,20 @@ projection wrapper 70. `seed/utf8-pass.pir` now makes that boundary executable:
 ```text
 @stream.utf8 STATUS CHANNEL STATE
 => call STATUS __utf8_stream_recv 2 CHANNEL STATE
+
+@stream.utf8.func DESTINATION
+=> funcptr DESTINATION __utf8_stream_recv
 ```
 
-The first marker causes the pass to append the namespaced 415-token ordinary
-PIR helper closure once; later markers add only their two-token call-site delta.
-The 13-site fixture therefore transfers exactly from 769 to 1,210 tokens:
-`769 + 13 * (6 - 4) + 415`. A second pass is byte-identical, marker-free input
-is byte-identical, and Python, self-hosted, and fixed pass generations all emit
-the same normalized program. The caller still owns the explicit 40-byte state,
-and the target program still supplies ordinary `channel_recv`; no UTF-8 opcode,
-runtime ABI, module loader, or hidden allocation was introduced.
+Either marker causes the pass to append the namespaced 415-token ordinary PIR
+helper closure once. The mixed fixture has twelve direct sites and one func
+materialization followed by `invoke`; it transfers exactly from 773 to 1,213
+tokens: `773 + 12 * (6 - 4) + (3 - 2) + 415`. A second pass is byte-identical,
+marker-free input is byte-identical, and Python, self-hosted, and fixed pass
+generations all emit the same normalized program. The caller still owns the
+explicit 40-byte state, and the target program still supplies ordinary
+`channel_recv`; no UTF-8 opcode, runtime ABI, module loader, or hidden allocation
+was introduced.
 
 Names beginning with `__utf8_` are owned by this injected closure. A source
 function with the same name and arity produces the ordinary duplicate-symbol

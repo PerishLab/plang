@@ -150,13 +150,14 @@ zero %state limited
 store64 %state %zero %zero
 call %channel channel_new 1 %capacity
 zero %channel limited
+@stream.utf8.func %receiver
 
 # U+03BB split across two availability windows.
 u64 %byte 206
 call %status channel_send 2 %channel %byte
 ne %test %status %one
 nonzero %test invalid
-@stream.utf8 %status %channel %state
+invoke %status %receiver 2 %channel %state
 ne %test %status %pending
 nonzero %test invalid
 u64 %byte 187
@@ -250,5 +251,4 @@ label invalid
 err invalid
 exit 1
 end
-
 

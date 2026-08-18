@@ -71,10 +71,12 @@ $work/lex "$root/seed/utf8-stream-atom.pir" > "$work/utf8-stream-atom.source"
 $work/utf8-pass < "$work/utf8-stream-atom.source" > "$work/utf8-stream-atom.once"
 $work/utf8-pass < "$work/utf8-stream-atom.once" > "$work/utf8-stream-atom.twice"
 cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.twice"
-test "$(grep -c '^@stream.utf8$' "$work/utf8-stream-atom.source")" = 13
-test "$(wc -l < "$work/utf8-stream-atom.source")" -eq 769
-test "$(wc -l < "$work/utf8-stream-atom.once")" -eq 1210
+test "$(grep -c '^@stream.utf8$' "$work/utf8-stream-atom.source")" = 12
+test "$(grep -c '^@stream.utf8.func$' "$work/utf8-stream-atom.source")" = 1
+test "$(wc -l < "$work/utf8-stream-atom.source")" -eq 773
+test "$(wc -l < "$work/utf8-stream-atom.once")" -eq 1213
 test "$(awk 'previous == "func" && $0 == "__utf8_stream_recv" { count++ } { previous = $0 } END { print count + 0 }' "$work/utf8-stream-atom.once")" = 1
+test "$(awk 'previous == "funcptr" && $0 == "%receiver" { destination++ } previous == "%receiver" && $0 == "__utf8_stream_recv" { target++ } { previous = $0 } END { print destination ":" target }' "$work/utf8-stream-atom.once")" = "1:1"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms-with-utf8.manifest" "$work" "$work/utf8-stream-atom.source" "$work/utf8-stream-atom.planned"
 cmp "$work/utf8-stream-atom.once" "$work/utf8-stream-atom.planned"
 $work/lower < "$work/utf8-stream-atom.once" | $work/emit > "$work/utf8-stream-atom.s"
@@ -85,12 +87,14 @@ $work/lex "$root/seed/hello.pir" > "$work/utf8-pass-identity.source"
 $work/utf8-pass < "$work/utf8-pass-identity.source" > "$work/utf8-pass-identity.tokens"
 cmp "$work/utf8-pass-identity.source" "$work/utf8-pass-identity.tokens"
 
-set +e
-$work/lex "$root/seed/utf8-pass-invalid-empty.pir" | $work/utf8-pass > "$work/utf8-pass-invalid.tokens" 2> "$work/utf8-pass-invalid.error"
-status=$?
-set -e
-test "$status" = 1
-test "$(cat "$work/utf8-pass-invalid.error")" = "plang0: utf8 lowering rejected token stream"
+for fixture in utf8-pass-invalid-empty utf8-pass-invalid-func-empty; do
+    set +e
+    $work/lex "$root/seed/$fixture.pir" | $work/utf8-pass > "$work/$fixture.tokens" 2> "$work/$fixture.error"
+    status=$?
+    set -e
+    test "$status" = 1
+    test "$(cat "$work/$fixture.error")" = "plang0: utf8 lowering rejected token stream"
+done
 python3 "$root/seed/boot.py" "$root/seed/invalid-bytes-unicode-escape.pir" "$work/invalid-bytes-unicode-escape.py.s"
 set +e
 error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-bytes-unicode-escape.py.s" -o "$work/invalid-bytes-unicode-escape.py" 2>&1)
@@ -144,9 +148,17 @@ test "$error" = "plang0: atom manifest rejected"
 test "$($work/meta 3< "$root/seed/affine-exact.tokens" < "$root/seed/atoms-affine-exact.manifest")" = "async"
 test "$($work/meta 3< "$root/seed/send-await.tokens" < "$root/seed/atoms-extension-exact.manifest")" = "async"
 test "$($work/meta 3< "$root/seed/utf8-one.tokens" < "$root/seed/atoms-fixed-exact.manifest")" = "utf8-pass"
+test "$($work/meta 3< "$root/seed/utf8-func-one.tokens" < "$root/seed/atoms-fixed-func-exact.manifest")" = "utf8-pass"
 
 set +e
 error=$($work/meta 3< "$root/seed/utf8-one.tokens" < "$root/seed/atoms-fixed-overflow.manifest" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: atom manifest rejected"
+
+set +e
+error=$($work/meta 3< "$root/seed/utf8-func-one.tokens" < "$root/seed/atoms-fixed-func-overflow.manifest" 2>&1)
 status=$?
 set -e
 test "$status" = 1

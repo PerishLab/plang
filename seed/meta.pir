@@ -988,7 +988,6 @@ le %test %value %length
 zero %test invalid
 u64 %value 0
 add %value %value %length
-zero %markers plan_fixed_done
 u64 %offset 408
 load64 %other_index %current %offset
 add %length %value %other_index
@@ -996,7 +995,6 @@ le %test %value %length
 zero %test invalid
 u64 %value 0
 add %value %value %length
-label plan_fixed_done
 u64 %offset 384
 load64 %index %current %offset
 u64 %offset 312

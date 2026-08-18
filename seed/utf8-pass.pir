@@ -1,6 +1,8 @@
 memory 8192
 bytes marker "@stream.utf8"
+bytes funcmarker "@stream.utf8.func"
 bytes callword "call\n"
+bytes funcptrword "funcptr\n"
 bytes functionword "__utf8_stream_recv\n"
 bytes arity "2\n"
 bytes newline "\n"
@@ -141,6 +143,9 @@ nonzero %test invalid
 data %word %wordlen marker
 call %test same 4 %buffer %length %word %wordlen
 nonzero %test lower
+data %word %wordlen funcmarker
+call %test same 4 %buffer %length %word %wordlen
+nonzero %test lower_func
 call %wrote emit 2 %buffer %length
 jump token
 label lower
@@ -158,6 +163,14 @@ call %wrote emit 2 %channel %blen
 call %wrote emit 2 %state %clen
 u64 %used 1
 jump token
+label lower_func
+call %alen nextcopy 4 %buffer %capacity %status %small
+zero %alen invalid
+out funcptrword
+call %wrote emit 2 %status %alen
+out functionword
+u64 %used 1
+jump token
 label finish
 zero %used success
 out helpers
@@ -170,4 +183,3 @@ label invalid
 err invalid
 exit 1
 end
-

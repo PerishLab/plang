@@ -47,8 +47,8 @@ consumed by the same pass but not participating in graph edges. Its mode is
 `BASE + SCALE * canonical_decimal_operand[OFFSET]`. Constant rules require zero
 scale and offset; affine rules require both to be positive. `WORK_BUDGET` is
 1..65535. `FIXED_OUTPUT_ON_USE` is a canonical natural no greater than 4095;
-it is charged once when the atom's primary marker count is nonzero, independent
-of the number of sites. Up to four extension rules reuse the same
+it is charged once when any marker owned by the atom is present, independent of
+the marker class or number of sites. Up to four extension rules reuse the same
 constant/affine algebra and
 attach to an atom by zero-based manifest index. They exist for a real third or
 later structural marker without copying empty rule slots into every atom.
@@ -68,7 +68,7 @@ the planner applies each atom's declared bounded transfer:
 next tokens = current tokens
             - marker count * input framing
             + marker count * output framing
-            + (marker count > 0 ? fixed output on use : 0)
+            + (any owned marker count > 0 ? fixed output on use : 0)
 
 next tokens               -= auxiliary count * auxiliary input framing
 next tokens               += sum(auxiliary constant/affine outputs)
@@ -148,5 +148,8 @@ PIR1 lowering and are rejected there.
 
 The fixed-on-use boundary is separately exact: one four-token `@stream.utf8`
 site transfers to a six-token call plus the 415-token shared closure, so budget
-421 is accepted and 420 is rejected. Additional sites pay only the two-token
-framing delta; the planner does not multiply the shared definition cost.
+421 is accepted and 420 is rejected. An auxiliary two-token
+`@stream.utf8.func` site transfers to a three-token `funcptr` plus the same
+closure, so 418 is accepted and 417 rejected even with zero primary markers.
+Additional sites pay only their framing delta; the planner does not multiply
+the shared definition cost.
