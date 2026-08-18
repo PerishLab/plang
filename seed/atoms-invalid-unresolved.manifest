@@ -1,7 +1,8 @@
 1
+8192
 collect
 @stream.collect
 @await.recv
-task+channel+collector
+channel+collector+task
 85
 collect

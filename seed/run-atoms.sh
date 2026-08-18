@@ -12,7 +12,7 @@ suffix=${6-}
 run_work=$(mktemp -d)
 trap 'rm -rf "$run_work"' EXIT
 
-"$meta" < "$manifest" > "$run_work/order"
+"$meta" 3< "$input" < "$manifest" > "$run_work/order"
 test -s "$run_work/order"
 
 run_chain() {

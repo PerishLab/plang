@@ -66,12 +66,13 @@ $work/lower < "$work/async-frames.tokens" | $work/emit > "$work/async-frames.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/async-frames.s" -o "$work/async-frames"
 $work/async-frames
 
-test "$($work/meta < "$root/seed/atoms.manifest")" = "collect
+test "$($work/meta 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
 async"
+test "$($work/meta 3< "$root/seed/hello.tokens" < "$root/seed/atoms-pure.manifest")" = "pure"
 
 for manifest in "$root"/seed/atoms-invalid-*.manifest; do
     set +e
-    error=$($work/meta < "$manifest" 2>&1 > "$work/meta-invalid.order")
+    error=$($work/meta 3< "$root/seed/hello.tokens" < "$manifest" 2>&1 > "$work/meta-invalid.order")
     status=$?
     set -e
 
@@ -203,7 +204,7 @@ $work/lex "$root/seed/collect.pir" | $work/lower | $work/emit > "$work/collect.s
 
 $work/lex "$root/seed/meta.pir" | $work/lower | $work/emit > "$work/meta.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/meta.self.s" -o "$work/meta.self"
-test "$($work/meta.self < "$root/seed/atoms.manifest")" = "collect
+test "$($work/meta.self 3< "$work/await.source.tokens" < "$root/seed/atoms.manifest")" = "collect
 async"
 
 $work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"
