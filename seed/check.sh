@@ -23,6 +23,8 @@ python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 python3 "$root/seed/boot.py" "$root/seed/channel.pir" "$work/channel.s"
 python3 "$root/seed/boot.py" "$root/seed/bitwise.pir" "$work/bitwise.s"
 python3 "$root/seed/boot.py" "$root/seed/capability.pir" "$work/capability.s"
+python3 "$root/seed/boot.py" "$root/seed/utf8.pir" "$work/utf8.s"
+python3 "$root/seed/boot.py" "$root/seed/utf8-literal.pir" "$work/utf8-literal.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.s" -o "$work/profile"
@@ -40,6 +42,8 @@ python3 "$root/seed/boot.py" "$root/seed/capability.pir" "$work/capability.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/channel.s" -o "$work/channel"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/bitwise.s" -o "$work/bitwise"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.s" -o "$work/capability"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8.s" -o "$work/utf8"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-literal.s" -o "$work/utf8-literal"
 
 $work/lex "$root/seed/await.pir" > "$work/await.source.tokens"
 "$root/seed/run-atoms.sh" "$work/meta" "$root/seed/atoms.manifest" "$work" "$work/await.source.tokens" "$work/await.atoms.tokens"
@@ -51,6 +55,15 @@ hello=$($work/hello)
 test "$hello" = "hello, plang"
 test "$($work/bitwise)" = "bitwise ok"
 test "$($work/capability)" = "capability ok"
+test "$($work/utf8 | od -An -tx1 | tr -d ' \n')" = "41cebbe4bda0f09f98800a75746638206f6b0a"
+test "$($work/utf8-literal | od -An -tx1 | tr -d ' \n')" = "cebbe4bda0e5a5bdf09f98800a"
+python3 "$root/seed/boot.py" "$root/seed/invalid-bytes-unicode-escape.pir" "$work/invalid-bytes-unicode-escape.py.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-bytes-unicode-escape.py.s" -o "$work/invalid-bytes-unicode-escape.py" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "invalid escape sequence"
 test "$($work/profile)" = "profile ok"
 test "$($work/channel)" = "channel ok"
 test "$($work/await)" = "ABCawait ok
@@ -224,11 +237,11 @@ set -e
 test "$status" = 1
 test "$error" = "plang0: source open failed"
 
+test "$($work/scan "$root/seed/nonascii.txt")" = "scan ok"
 set +e
-error=$($work/scan "$root/seed/nonascii.txt" 2>&1)
+error=$($work/scan "$root/seed/control.txt" 2>&1)
 status=$?
 set -e
-
 test "$status" = 1
 test "$error" = "plang0: invalid source byte"
 
@@ -272,6 +285,22 @@ test "$($work/bitwise.self)" = "bitwise ok"
 $work/lex "$root/seed/capability.pir" | $work/lower | $work/emit > "$work/capability.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.self.s" -o "$work/capability.self"
 test "$($work/capability.self)" = "capability ok"
+
+$work/lex "$root/seed/utf8.pir" | $work/lower | $work/emit > "$work/utf8.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8.self.s" -o "$work/utf8.self"
+test "$($work/utf8.self | od -An -tx1 | tr -d ' \n')" = "41cebbe4bda0f09f98800a75746638206f6b0a"
+
+$work/lex "$root/seed/utf8-literal.pir" | $work/lower | $work/emit > "$work/utf8-literal.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-literal.self.s" -o "$work/utf8-literal.self"
+test "$($work/utf8-literal.self | od -An -tx1 | tr -d ' \n')" = "cebbe4bda0e5a5bdf09f98800a"
+
+$work/lex "$root/seed/invalid-bytes-unicode-escape.pir" | $work/lower | $work/emit > "$work/invalid-bytes-unicode-escape.self.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-bytes-unicode-escape.self.s" -o "$work/invalid-bytes-unicode-escape.self" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "invalid escape sequence"
 
 $work/lex "$root/seed/invalid-arg-index.pir" | $work/lower | $work/emit > "$work/invalid-arg-index.self.s"
 set +e
@@ -404,6 +433,13 @@ status=$?
 set -e
 test "$status" = 1
 test "$error" = "plang0: source open failed"
+test "$($work/scan.self "$root/seed/nonascii.txt")" = "scan ok"
+set +e
+error=$($work/scan.self "$root/seed/control.txt" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: invalid source byte"
 
 set +e
 error=$($work/lower < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.lower.tokens")
@@ -522,6 +558,25 @@ $work/lex "$root/seed/capability.pir" | $work/lower.self | $work/emit.self > "$w
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/capability.fixed.s" -o "$work/capability.fixed"
 test "$($work/capability.fixed)" = "capability ok"
 
+$work/lex "$root/seed/utf8.pir" | $work/lower.self | $work/emit.self > "$work/utf8.fixed.s"
+cmp "$work/utf8.self.s" "$work/utf8.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8.fixed.s" -o "$work/utf8.fixed"
+test "$($work/utf8.fixed | od -An -tx1 | tr -d ' \n')" = "41cebbe4bda0f09f98800a75746638206f6b0a"
+
+$work/lex "$root/seed/utf8-literal.pir" | $work/lower.self | $work/emit.self > "$work/utf8-literal.fixed.s"
+cmp "$work/utf8-literal.self.s" "$work/utf8-literal.fixed.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/utf8-literal.fixed.s" -o "$work/utf8-literal.fixed"
+test "$($work/utf8-literal.fixed | od -An -tx1 | tr -d ' \n')" = "cebbe4bda0e5a5bdf09f98800a"
+
+$work/lex "$root/seed/invalid-bytes-unicode-escape.pir" | $work/lower.self | $work/emit.self > "$work/invalid-bytes-unicode-escape.fixed.s"
+cmp "$work/invalid-bytes-unicode-escape.self.s" "$work/invalid-bytes-unicode-escape.fixed.s"
+set +e
+error=$(/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/invalid-bytes-unicode-escape.fixed.s" -o "$work/invalid-bytes-unicode-escape.fixed" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+echo "$error" | grep -q "invalid escape sequence"
+
 $work/lex "$root/seed/invalid-arg-index.pir" | $work/lower.self | $work/emit.self > "$work/invalid-arg-index.fixed.s"
 cmp "$work/invalid-arg-index.self.s" "$work/invalid-arg-index.fixed.s"
 set +e
@@ -636,6 +691,13 @@ status=$?
 set -e
 test "$status" = 1
 test "$error" = "plang0: source open failed"
+test "$($work/scan.fixed "$root/seed/nonascii.txt")" = "scan ok"
+set +e
+error=$($work/scan.fixed "$root/seed/control.txt" 2>&1)
+status=$?
+set -e
+test "$status" = 1
+test "$error" = "plang0: invalid source byte"
 
 $work/lex "$root/seed/profile.pir" | $work/lower.self | $work/emit.self > "$work/profile.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/profile.fixed.s" -o "$work/profile.fixed"

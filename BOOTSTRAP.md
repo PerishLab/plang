@@ -28,6 +28,11 @@ lower, decode, and emit. `scan.pir` exercises unsigned `lt`, `argv`, `open`, and
 `close` through the Python, self-hosted, and fixed-point generations.
 `capability.pir` exercises maximum-width u64 construction, eight-argument direct
 calls, and eight-argument indirect invokes through the same three generations.
+`utf8.pir` proves one-through-four-byte Unicode scalar encoding, explicit
+invalid-scalar and capacity statuses, and transactional committed length using
+only existing PIR1 operations. `utf8-literal.pir` separately proves that raw
+UTF-8 static bytes cross Python, self-hosted, and fixed compilers without the
+emitter understanding characters. See `UTF8.md`.
 The lowerer rejects function declarations wider than eight. Argument indices
 are checked against a per-function assembler constant, keeping that local
 validation outside runtime code and avoiding mutable cross-helper compiler

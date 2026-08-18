@@ -12,14 +12,14 @@ u64 %tab 9
 u64 %lf 10
 u64 %cr 13
 u64 %space 32
-u64 %tilde 126
+u64 %delete 127
 eq %a %byte %tab
 eq %b %byte %lf
 or %a %a %b
 eq %b %byte %cr
 or %a %a %b
 le %b %space %byte
-le %c %byte %tilde
+ne %c %byte %delete
 and %b %b %c
 or %a %a %b
 ret %a

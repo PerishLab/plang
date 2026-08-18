@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import re
 from pathlib import Path
 
@@ -50,17 +49,14 @@ def parse(path):
         if text.startswith("bytes ") and active is None:
             parts = text.split(maxsplit=2)
             if len(parts) != 3:
-                fail(path, line, "bytes requires a name and JSON string")
+                fail(path, line, "bytes requires a name and quoted byte literal")
             key = named(path, line, parts[1])
             if key in data:
                 fail(path, line, f"duplicate data: {key}")
-            try:
-                value = json.loads(parts[2])
-            except json.JSONDecodeError as error:
-                fail(path, line, f"invalid JSON string: {error.msg}")
-            if not isinstance(value, str):
-                fail(path, line, "bytes value must be a string")
-            data[key] = value.encode()
+            value = parts[2]
+            if len(value) < 2 or value[0] != '"' or value[-1] != '"':
+                fail(path, line, "bytes value must be quoted")
+            data[key] = value
             continue
         parts = text.split()
         if parts[0] == "memory" and active is None:
@@ -208,7 +204,7 @@ def emit_func(path, data, functions, func):
                 fail(path, line, f"unknown data: {key}")
             out.extend([f"    adrp x9, L_data_{key}@PAGE", f"    add x9, x9, L_data_{key}@PAGEOFF"])
             store(out, slots, ptr, "x9")
-            out.extend(immediate("x9", len(data[key])))
+            out.append(f"    mov x9, #L_size_{key}")
             store(out, slots, size, "x9")
         elif op == "funcptr":
             exact(path, line, parts, 3)
@@ -319,7 +315,7 @@ def emit_func(path, data, functions, func):
             if key not in data:
                 fail(path, line, f"unknown data: {key}")
             out.extend([f"    adrp x0, L_data_{key}@PAGE", f"    add x0, x0, L_data_{key}@PAGEOFF"])
-            out.extend(immediate("x1", len(data[key])))
+            out.append(f"    mov x1, #L_size_{key}")
             out.append(f"    bl _plang_{op}")
         elif op == "exit":
             exact(path, line, parts, 2)
@@ -349,10 +345,9 @@ def emit(path, memory, data, funcs):
     for func in funcs:
         out.extend(emit_func(path, data, functions, func))
     out.append(".section __TEXT,__const")
-    for key, value in data.items():
+    for key, literal in data.items():
         out.extend([".p2align 0", f"L_data_{key}:"])
-        if value:
-            out.append("    .byte " + ", ".join(str(byte) for byte in value))
+        out.extend([f"    .ascii {literal}", f"    .set L_size_{key}, . - L_data_{key}"])
     out.extend(
         [
             ".section __DATA,__data",

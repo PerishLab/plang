@@ -53,11 +53,19 @@ labels may resolve forward, and source can be read through a bounded line buffer
 without retaining a program AST.
 
 `seed/lex.pir` establishes the emitter's input boundary. It turns arbitrarily
-long source into one token per line through a fixed 4 KiB window. JSON strings
-remain one token, may cross input windows, and are rejected when unterminated.
+long source into one token per line through a fixed 4 KiB window. Quoted byte
+literals remain one token, may cross input windows, and are rejected when
+unterminated.
 Because output is a stream, a late lexical failure does not retract tokens that
 were already committed; consumers decide whether they require transactional
 buffering.
+
+Static `bytes` literals are passed to the target assembler by both the Python
+oracle and self-hosted emitter; neither layer assigns them JSON or Unicode
+semantics. Raw UTF-8 source bytes therefore pass through unchanged, while
+Unicode escape decoding is a higher semantic transform. `seed/utf8.pir` proves
+that scalar-to-UTF-8 encoding is expressible with existing PIR1 operations and
+explicit statuses. See `UTF8.md`.
 
 `seed/decode.pir` consumes that stream through another fixed 4 KiB window. Its
 compact `opcode arity` table makes the instruction vocabulary data rather than
