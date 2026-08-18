@@ -11,6 +11,7 @@ python3 "$root/seed/boot.py" "$root/seed/overflow.pir" "$work/overflow.s"
 python3 "$root/seed/boot.py" "$root/seed/scan.pir" "$work/scan.s"
 python3 "$root/seed/boot.py" "$root/seed/lex.pir" "$work/lex.s"
 python3 "$root/seed/boot.py" "$root/seed/decode.pir" "$work/decode.s"
+python3 "$root/seed/boot.py" "$root/seed/lower.pir" "$work/lower.s"
 python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.s" -o "$work/hello"
@@ -19,6 +20,7 @@ python3 "$root/seed/boot.py" "$root/seed/emit.pir" "$work/emit.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/scan.s" -o "$work/scan"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lex.s" -o "$work/lex"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/decode.s" -o "$work/decode"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.s" -o "$work/lower"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.s" -o "$work/emit"
 
 hello=$($work/hello)
@@ -78,15 +80,29 @@ set -e
 test "$status" = 1
 test "$error" = "plang0: invalid token stream"
 
-$work/lex "$root/seed/hello.pir" | $work/emit > "$work/hello.self.s"
+$work/lex "$root/seed/hello.pir" | $work/lower | $work/emit > "$work/hello.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.self.s" -o "$work/hello.self"
 test "$($work/hello.self)" = "hello, plang"
 
-$work/lex "$root/seed/emit.pir" | $work/emit > "$work/emit.self.s"
+set +e
+error=$($work/lower < "$root/seed/invalid.tokens" 2>&1 > "$work/invalid.lower.tokens")
+status=$?
+set -e
+
+test "$status" = 1
+test "$error" = "plang0: lowering rejected token stream"
+
+$work/lex "$root/seed/lower.pir" | $work/lower | $work/emit > "$work/lower.self.s"
+/usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/lower.self.s" -o "$work/lower.self"
+
+$work/lex "$root/seed/emit.pir" | $work/lower | $work/emit > "$work/emit.self.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/emit.self.s" -o "$work/emit.self"
-$work/lex "$root/seed/emit.pir" | $work/emit.self > "$work/emit.fixed.s"
+
+$work/lex "$root/seed/lower.pir" | $work/lower.self | $work/emit.self > "$work/lower.fixed.s"
+cmp "$work/lower.self.s" "$work/lower.fixed.s"
+$work/lex "$root/seed/emit.pir" | $work/lower.self | $work/emit.self > "$work/emit.fixed.s"
 cmp "$work/emit.self.s" "$work/emit.fixed.s"
 
-$work/lex "$root/seed/hello.pir" | $work/emit.self > "$work/hello.fixed.s"
+$work/lex "$root/seed/hello.pir" | $work/lower.self | $work/emit.self > "$work/hello.fixed.s"
 /usr/bin/clang -arch arm64 "$root/seed/arm64-darwin.s" "$work/hello.fixed.s" -o "$work/hello.fixed"
 test "$($work/hello.fixed)" = "hello, plang"

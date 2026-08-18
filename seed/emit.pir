@@ -1,6 +1,6 @@
 memory 16777216
 bytes top "memory M\nbytes B\nfunc F\n"
-bytes body "arg A\nu64 U\ndata D\nadd B\nsub B\neq P\nne P\nle P\nslt P\nload8 L\nalloc C\nread I\nwrite I\ncall K\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
+bytes body "arg A\nu64 U\ndata D\nadd B\nsub B\nmul B\neq P\nne P\nle P\nslt P\nload8 L\nstore8 H\nalloc C\nread I\nwrite I\ncall K\nlabel G\njump J\nzero Z\nnonzero Z\nout O\nerr O\nexit X\nret T\nend E\n"
 bytes constsec ".section __TEXT,__const\n"
 bytes datahead ".p2align 0\nL_data_"
 bytes datamid ":\n    .ascii "
@@ -22,16 +22,19 @@ bytes load1 "    ldur x1, [x29, #-"
 bytes load2 "    ldur x2, [x29, #-"
 bytes load3 "    ldur x3, [x29, #-"
 bytes load10 "    ldur x10, [x29, #-"
+bytes load11 "    ldur x11, [x29, #-"
 bytes alloc "    bl _plang_alloc\n    stur x0, [x29, #-"
 bytes load9 "    ldur x9, [x29, #-"
 bytes add11 "    add x11, x9, x10\n"
 bytes sub11 "    sub x11, x9, x10\n"
+bytes mul11 "    mul x11, x9, x10\n"
 bytes cmp "    cmp x9, x10\n    cset x11, "
 bytes eqcond "eq\n"
 bytes necond "ne\n"
 bytes lecond "ls\n"
 bytes sltcond "lt\n"
 bytes loadbyte "    add x11, x9, x10\n    ldrb w11, [x11]\n"
+bytes storebyte "    add x9, x9, x10\n    strb w11, [x9]\n"
 bytes dataa "    adrp x9, L_data_"
 bytes datab "@PAGE\n    add x9, x9, L_data_"
 bytes datac "@PAGEOFF\n    stur x9, [x29, #-"
@@ -58,595 +61,626 @@ bytes limited "plang0: memory limit\n"
 bytes invalid "plang0: emitter rejected token stream\n"
 
 func next 3
-arg %r8 0
-arg %r16 1
-arg %r24 2
-u64 %r32 0
-u64 %r40 1
-u64 %r48 10
-u64 %r56 0
-label next_read
-eq %r64 %r56 %r24
-nonzero %r64 next_full
-add %r72 %r16 %r56
-read %r80 %r8 %r72 %r40
-slt %r64 %r80 %r32
-nonzero %r64 next_full
-zero %r80 next_done
-load8 %r88 %r72 %r32
-eq %r64 %r88 %r48
-nonzero %r64 next_done
-add %r56 %r56 %r40
-jump next_read
-label next_done
-ret %r56
-label next_full
-ret %r24
+arg %fd 0
+arg %buffer 1
+arg %capacity 2
+u64 %zero 0
+u64 %one 1
+u64 %lf 10
+u64 %length 0
+label read
+eq %test %length %capacity
+nonzero %test full
+add %seat %buffer %length
+read %count %fd %seat %one
+slt %test %count %zero
+nonzero %test full
+zero %count done
+load8 %byte %seat %zero
+eq %test %byte %lf
+nonzero %test done
+add %length %length %one
+jump read
+label done
+ret %length
+label full
+ret %capacity
 end
 
 func same 4
-arg %r8 0
-arg %r16 1
-arg %r24 2
-arg %r32 3
-u64 %r40 0
-u64 %r48 1
-ne %r56 %r16 %r32
-nonzero %r56 same_no
-u64 %r64 0
-label same_byte
-eq %r56 %r64 %r16
-nonzero %r56 same_yes
-load8 %r72 %r8 %r64
-load8 %r80 %r24 %r64
-ne %r56 %r72 %r80
-nonzero %r56 same_no
-add %r64 %r64 %r48
-jump same_byte
-label same_yes
-u64 %r88 1
-ret %r88
-label same_no
-ret %r40
+arg %left 0
+arg %llen 1
+arg %right 2
+arg %rlen 3
+u64 %zero 0
+u64 %one 1
+ne %test %llen %rlen
+nonzero %test no
+u64 %index 0
+label byte
+eq %test %index %llen
+nonzero %test yes
+load8 %a %left %index
+load8 %b %right %index
+ne %test %a %b
+nonzero %test no
+add %index %index %one
+jump byte
+label yes
+u64 %result 1
+ret %result
+label no
+ret %zero
 end
 
 func lookup 4
-arg %r8 0
-arg %r16 1
-arg %r24 2
-arg %r32 3
-u64 %r40 0
-u64 %r48 1
-u64 %r56 32
-u64 %r64 10
-  u64 %r80 255
-u64 %r88 0
-label lookup_record
-le %r96 %r32 %r88
-nonzero %r96 lookup_missing
-add %r104 %r88 %r40
-label lookup_name
-load8 %r112 %r24 %r88
-eq %r96 %r112 %r56
-nonzero %r96 lookup_code
-add %r88 %r88 %r48
-jump lookup_name
-label lookup_code
-sub %r120 %r88 %r104
-add %r128 %r24 %r104
-call %r96 same 4 %r8 %r16 %r128 %r120
-add %r88 %r88 %r48
-load8 %r136 %r24 %r88
-  nonzero %r96 lookup_found
-label lookup_newline
-load8 %r112 %r24 %r88
-eq %r96 %r112 %r64
-nonzero %r96 lookup_advance
-add %r88 %r88 %r48
-jump lookup_newline
-label lookup_advance
-add %r88 %r88 %r48
-jump lookup_record
-label lookup_found
-ret %r136
-label lookup_missing
-ret %r80
+arg %token 0
+arg %length 1
+arg %table 2
+arg %size 3
+u64 %zero 0
+u64 %one 1
+u64 %space 32
+u64 %lf 10
+u64 %unknown 255
+u64 %index 0
+label record
+le %test %size %index
+nonzero %test missing
+add %start %index %zero
+label name
+load8 %byte %table %index
+eq %test %byte %space
+nonzero %test code
+add %index %index %one
+jump name
+label code
+sub %width %index %start
+add %name %table %start
+call %test same 4 %token %length %name %width
+add %index %index %one
+load8 %code %table %index
+nonzero %test found
+label newline
+load8 %byte %table %index
+eq %test %byte %lf
+nonzero %test advance
+add %index %index %one
+jump newline
+label advance
+add %index %index %one
+jump record
+label found
+ret %code
+label missing
+ret %unknown
 end
 
 func put 2
-arg %r8 0
-arg %r16 1
-u64 %r24 1
-write %r32 %r24 %r8 %r16
-ret %r32
+arg %data 0
+arg %length 1
+u64 %fd 1
+write %result %fd %data %length
+ret %result
 end
 
 func reg 2
-arg %r8 0
-arg %r16 1
-u64 %r24 2
-sub %r16 %r16 %r24
-add %r8 %r8 %r24
-call %r32 put 2 %r8 %r16
-ret %r32
+arg %token 0
+arg %length 1
+u64 %two 2
+sub %length %length %two
+add %token %token %two
+call %result put 2 %token %length
+ret %result
 end
 
 
 func main 0
-u64 %r8 0
-u64 %r16 1
-u64 %r24 255
-u64 %r32 4096
-u64 %r40 0
-alloc %r48 %r32
-alloc %r56 %r32
-alloc %r64 %r32
-alloc %r72 %r32
-alloc %r192 %r32
-zero %r48 self_limited
-zero %r56 self_limited
-zero %r64 self_limited
-zero %r72 self_limited
-zero %r192 self_limited
-data %r80 %r88 top
-data %r96 %r104 constsec
-call %r112 put 2 %r96 %r104
-label self_top
-data %r80 %r88 top
-call %r120 next 3 %r40 %r48 %r32
-zero %r120 self_success
-call %r128 lookup 4 %r48 %r120 %r80 %r88
-eq %r136 %r128 %r24
-nonzero %r136 self_invalid
-u64 %r168 77
-eq %r136 %r128 %r168
-nonzero %r136 self_memory
-u64 %r168 66
-eq %r136 %r128 %r168
-nonzero %r136 self_bytes
-u64 %r168 70
-eq %r136 %r128 %r168
-nonzero %r136 self_function
-jump self_invalid
-label self_memory
-call %r120 next 3 %r40 %r56 %r32
-zero %r120 self_invalid
-jump self_top
-label self_bytes
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-zero %r152 self_invalid
-zero %r160 self_invalid
-data %r96 %r104 datahead
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 datamid
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r64 %r160
-data %r96 %r104 dataset
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 dataend
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-jump self_top
-label self_function
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-zero %r152 self_invalid
-zero %r160 self_invalid
-data %r96 %r104 texthead
-call %r112 put 2 %r96 %r104
-data %r96 %r104 mainword
-call %r136 same 4 %r56 %r152 %r96 %r104
-nonzero %r136 self_function_main
-data %r96 %r104 pirname
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-data %r96 %r104 pirname
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-jump self_function_tail
-label self_function_main
-data %r96 %r104 mainname
-call %r112 put 2 %r96 %r104
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-data %r96 %r104 mainname
-call %r112 put 2 %r96 %r104
-label self_function_tail
-data %r96 %r104 prologue
-call %r112 put 2 %r96 %r104
-data %r80 %r88 body
-label self_body
-data %r80 %r88 body
-call %r120 next 3 %r40 %r48 %r32
-zero %r120 self_invalid
-call %r128 lookup 4 %r48 %r120 %r80 %r88
-eq %r136 %r128 %r24
-nonzero %r136 self_invalid
-u64 %r168 65
-eq %r136 %r128 %r168
-nonzero %r136 self_arg
-u64 %r168 85
-eq %r136 %r128 %r168
-nonzero %r136 self_u64
-u64 %r168 68
-eq %r136 %r128 %r168
-nonzero %r136 self_data
-u64 %r168 66
-eq %r136 %r128 %r168
-nonzero %r136 self_binary
-u64 %r168 80
-eq %r136 %r128 %r168
-nonzero %r136 self_compare
-u64 %r168 76
-eq %r136 %r128 %r168
-nonzero %r136 self_load8
-u64 %r168 67
-eq %r136 %r128 %r168
-nonzero %r136 self_allocation
-u64 %r168 73
-eq %r136 %r128 %r168
-nonzero %r136 self_io
-u64 %r168 75
-eq %r136 %r128 %r168
-nonzero %r136 self_call
-u64 %r168 71
-eq %r136 %r128 %r168
-nonzero %r136 self_label
-u64 %r168 74
-eq %r136 %r128 %r168
-nonzero %r136 self_jump
-u64 %r168 90
-eq %r136 %r128 %r168
-nonzero %r136 self_branch
-u64 %r168 79
-eq %r136 %r128 %r168
-nonzero %r136 self_output
-u64 %r168 88
-eq %r136 %r128 %r168
-nonzero %r136 self_exit
-u64 %r168 84
-eq %r136 %r128 %r168
-nonzero %r136 self_return
-u64 %r168 69
-eq %r136 %r128 %r168
-nonzero %r136 self_finish
-jump self_invalid
-label self_arg
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-data %r96 %r104 arghead
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r64 %r160
-data %r96 %r104 comma
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_u64
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-data %r96 %r104 movz
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r64 %r160
-data %r96 %r104 store
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_data
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-call %r120 next 3 %r40 %r72 %r32
-data %r96 %r104 dataa
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r72 %r120
-data %r96 %r104 datab
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r72 %r120
-data %r96 %r104 datac
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 datad
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r72 %r120
-data %r96 %r104 datae
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r64 %r160
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_binary
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-call %r120 next 3 %r40 %r72 %r32
-data %r96 %r104 load9
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r64 %r160
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 load10
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r72 %r120
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-load8 %r176 %r48 %r8
-u64 %r184 97
-eq %r136 %r176 %r184
-nonzero %r136 self_binary_add
-data %r96 %r104 sub11
-jump self_binary_emit
-label self_binary_add
-data %r96 %r104 add11
-label self_binary_emit
-call %r112 put 2 %r96 %r104
-data %r96 %r104 store11
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_compare
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-call %r120 next 3 %r40 %r72 %r32
-data %r96 %r104 load9
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r64 %r160
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 load10
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r72 %r120
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 cmp
-call %r112 put 2 %r96 %r104
-load8 %r176 %r48 %r8
-u64 %r184 101
-eq %r136 %r176 %r184
-nonzero %r136 self_compare_eq
-u64 %r184 110
-eq %r136 %r176 %r184
-nonzero %r136 self_compare_ne
-u64 %r184 108
-eq %r136 %r176 %r184
-nonzero %r136 self_compare_le
-data %r96 %r104 sltcond
-jump self_compare_emit
-label self_compare_eq
-data %r96 %r104 eqcond
-jump self_compare_emit
-label self_compare_ne
-data %r96 %r104 necond
-jump self_compare_emit
-label self_compare_le
-data %r96 %r104 lecond
-label self_compare_emit
-call %r112 put 2 %r96 %r104
-data %r96 %r104 store11
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_load8
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-call %r120 next 3 %r40 %r72 %r32
-data %r96 %r104 load9
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r64 %r160
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 load10
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r72 %r120
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 loadbyte
-call %r112 put 2 %r96 %r104
-data %r96 %r104 store11
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_allocation
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-data %r96 %r104 load0
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r64 %r160
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 alloc
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_io
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-call %r120 next 3 %r40 %r72 %r32
-call %r128 next 3 %r40 %r192 %r32
-data %r96 %r104 load0
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r64 %r160
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 load1
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r72 %r120
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 load2
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r192 %r128
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-load8 %r176 %r48 %r8
-u64 %r184 114
-eq %r136 %r176 %r184
-nonzero %r136 self_io_read
-data %r96 %r104 writecall
-jump self_io_emit
-label self_io_read
-data %r96 %r104 readcall
-label self_io_emit
-call %r112 put 2 %r96 %r104
-data %r96 %r104 store0
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_call
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-call %r120 next 3 %r40 %r72 %r32
-load8 %r176 %r72 %r8
-u64 %r184 48
-eq %r136 %r176 %r184
-nonzero %r136 self_call_emit
-call %r128 next 3 %r40 %r48 %r32
-data %r96 %r104 load0
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r48 %r128
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-u64 %r184 49
-eq %r136 %r176 %r184
-nonzero %r136 self_call_emit
-call %r128 next 3 %r40 %r48 %r32
-data %r96 %r104 load1
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r48 %r128
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-u64 %r184 50
-eq %r136 %r176 %r184
-nonzero %r136 self_call_emit
-call %r128 next 3 %r40 %r48 %r32
-data %r96 %r104 load2
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r48 %r128
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-u64 %r184 51
-eq %r136 %r176 %r184
-nonzero %r136 self_call_emit
-call %r128 next 3 %r40 %r48 %r32
-data %r96 %r104 load3
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r48 %r128
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-u64 %r184 52
-ne %r136 %r176 %r184
-nonzero %r136 self_invalid
-label self_call_emit
-data %r96 %r104 calla
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r64 %r160
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-data %r96 %r104 store0
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_branch
-call %r152 next 3 %r40 %r56 %r32
-call %r160 next 3 %r40 %r64 %r32
-data %r96 %r104 load9
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-load8 %r176 %r48 %r8
-u64 %r184 122
-eq %r136 %r176 %r184
-nonzero %r136 self_branch_zero
-data %r96 %r104 cbnza
-jump self_branch_emit
-label self_branch_zero
-data %r96 %r104 cbza
-label self_branch_emit
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r64 %r160
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_output
-call %r152 next 3 %r40 %r56 %r32
-data %r96 %r104 outa
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 outb
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 outc
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 outd
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r48 %r120
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_label
-call %r152 next 3 %r40 %r56 %r32
-data %r96 %r104 labela
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 labelb
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_jump
-call %r152 next 3 %r40 %r56 %r32
-data %r96 %r104 jumpa
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_exit
-call %r152 next 3 %r40 %r56 %r32
-data %r96 %r104 exita
-call %r112 put 2 %r96 %r104
-call %r112 put 2 %r56 %r152
-data %r96 %r104 line
-call %r112 put 2 %r96 %r104
-data %r96 %r104 epilogue
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_return
-call %r152 next 3 %r40 %r56 %r32
-data %r96 %r104 load0
-call %r112 put 2 %r96 %r104
-call %r112 reg 2 %r56 %r152
-data %r96 %r104 close
-call %r112 put 2 %r96 %r104
-data %r96 %r104 epilogue
-call %r112 put 2 %r96 %r104
-jump self_body
-label self_finish
-jump self_top
-label self_success
+u64 %zero 0
+u64 %one 1
+u64 %unknown 255
+u64 %capacity 4096
+u64 %fd 0
+alloc %op %capacity
+alloc %a %capacity
+alloc %b %capacity
+alloc %c %capacity
+alloc %d %capacity
+zero %op limited
+zero %a limited
+zero %b limited
+zero %c limited
+zero %d limited
+data %table %tablesize top
+data %piece %piecesize constsec
+call %wrote put 2 %piece %piecesize
+label top
+data %table %tablesize top
+call %length next 3 %fd %op %capacity
+zero %length success
+call %code lookup 4 %op %length %table %tablesize
+eq %test %code %unknown
+nonzero %test invalid
+u64 %value 77
+eq %test %code %value
+nonzero %test memory
+u64 %value 66
+eq %test %code %value
+nonzero %test bytes
+u64 %value 70
+eq %test %code %value
+nonzero %test function
+jump invalid
+label memory
+call %length next 3 %fd %a %capacity
+zero %length invalid
+jump top
+label bytes
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+zero %alen invalid
+zero %blen invalid
+data %piece %piecesize datahead
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize datamid
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize dataset
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize dataend
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+jump top
+label function
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+zero %alen invalid
+zero %blen invalid
+data %piece %piecesize texthead
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize mainword
+call %test same 4 %a %alen %piece %piecesize
+nonzero %test function_main
+data %piece %piecesize pirname
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize pirname
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+jump function_tail
+label function_main
+data %piece %piecesize mainname
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize mainname
+call %wrote put 2 %piece %piecesize
+label function_tail
+data %piece %piecesize prologue
+call %wrote put 2 %piece %piecesize
+data %table %tablesize body
+label body
+data %table %tablesize body
+call %length next 3 %fd %op %capacity
+zero %length invalid
+call %code lookup 4 %op %length %table %tablesize
+eq %test %code %unknown
+nonzero %test invalid
+u64 %value 65
+eq %test %code %value
+nonzero %test arg
+u64 %value 85
+eq %test %code %value
+nonzero %test u64
+u64 %value 68
+eq %test %code %value
+nonzero %test data
+u64 %value 66
+eq %test %code %value
+nonzero %test binary
+u64 %value 80
+eq %test %code %value
+nonzero %test compare
+u64 %value 76
+eq %test %code %value
+nonzero %test load8
+u64 %value 72
+eq %test %code %value
+nonzero %test store8
+u64 %value 67
+eq %test %code %value
+nonzero %test allocation
+u64 %value 73
+eq %test %code %value
+nonzero %test io
+u64 %value 75
+eq %test %code %value
+nonzero %test call
+u64 %value 71
+eq %test %code %value
+nonzero %test label
+u64 %value 74
+eq %test %code %value
+nonzero %test jump
+u64 %value 90
+eq %test %code %value
+nonzero %test branch
+u64 %value 79
+eq %test %code %value
+nonzero %test output
+u64 %value 88
+eq %test %code %value
+nonzero %test exit
+u64 %value 84
+eq %test %code %value
+nonzero %test return_op
+u64 %value 69
+eq %test %code %value
+nonzero %test finish
+jump invalid
+label arg
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+data %piece %piecesize arghead
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize comma
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label u64
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+data %piece %piecesize movz
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize store
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label data
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize dataa
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %c %length
+data %piece %piecesize datab
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %c %length
+data %piece %piecesize datac
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize datad
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %c %length
+data %piece %piecesize datae
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label binary
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+load8 %byte %op %zero
+u64 %char 97
+eq %test %byte %char
+nonzero %test binary_add
+u64 %char 109
+eq %test %byte %char
+nonzero %test binary_mul
+data %piece %piecesize sub11
+jump binary_emit
+label binary_add
+data %piece %piecesize add11
+jump binary_emit
+label binary_mul
+data %piece %piecesize mul11
+label binary_emit
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label compare
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize cmp
+call %wrote put 2 %piece %piecesize
+load8 %byte %op %zero
+u64 %char 101
+eq %test %byte %char
+nonzero %test compare_eq
+u64 %char 110
+eq %test %byte %char
+nonzero %test compare_ne
+u64 %char 108
+eq %test %byte %char
+nonzero %test compare_le
+data %piece %piecesize sltcond
+jump compare_emit
+label compare_eq
+data %piece %piecesize eqcond
+jump compare_emit
+label compare_ne
+data %piece %piecesize necond
+jump compare_emit
+label compare_le
+data %piece %piecesize lecond
+label compare_emit
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label load8
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize loadbyte
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label store8
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load10
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load11
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize storebyte
+call %wrote put 2 %piece %piecesize
+jump body
+label allocation
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+data %piece %piecesize load0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize alloc
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label io
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+call %code next 3 %fd %d %capacity
+data %piece %piecesize load0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %b %blen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load1
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %c %length
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize load2
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %d %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+load8 %byte %op %zero
+u64 %char 114
+eq %test %byte %char
+nonzero %test io_read
+data %piece %piecesize writecall
+jump io_emit
+label io_read
+data %piece %piecesize readcall
+label io_emit
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label call
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+call %length next 3 %fd %c %capacity
+load8 %byte %c %zero
+u64 %char 48
+eq %test %byte %char
+nonzero %test call_emit
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 49
+eq %test %byte %char
+nonzero %test call_emit
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load1
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 50
+eq %test %byte %char
+nonzero %test call_emit
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load2
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 51
+eq %test %byte %char
+nonzero %test call_emit
+call %code next 3 %fd %op %capacity
+data %piece %piecesize load3
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %op %code
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+u64 %char 52
+ne %test %byte %char
+nonzero %test invalid
+label call_emit
+data %piece %piecesize calla
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize store0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+jump body
+label branch
+call %alen next 3 %fd %a %capacity
+call %blen next 3 %fd %b %capacity
+data %piece %piecesize load9
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+load8 %byte %op %zero
+u64 %char 122
+eq %test %byte %char
+nonzero %test branch_zero
+data %piece %piecesize cbnza
+jump branch_emit
+label branch_zero
+data %piece %piecesize cbza
+label branch_emit
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %b %blen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+jump body
+label output
+call %alen next 3 %fd %a %capacity
+data %piece %piecesize outa
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize outb
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize outc
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize outd
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %op %length
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+jump body
+label label
+call %alen next 3 %fd %a %capacity
+data %piece %piecesize labela
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize labelb
+call %wrote put 2 %piece %piecesize
+jump body
+label jump
+call %alen next 3 %fd %a %capacity
+data %piece %piecesize jumpa
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+jump body
+label exit
+call %alen next 3 %fd %a %capacity
+data %piece %piecesize exita
+call %wrote put 2 %piece %piecesize
+call %wrote put 2 %a %alen
+data %piece %piecesize line
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize epilogue
+call %wrote put 2 %piece %piecesize
+jump body
+label return_op
+call %alen next 3 %fd %a %capacity
+data %piece %piecesize load0
+call %wrote put 2 %piece %piecesize
+call %wrote reg 2 %a %alen
+data %piece %piecesize close
+call %wrote put 2 %piece %piecesize
+data %piece %piecesize epilogue
+call %wrote put 2 %piece %piecesize
+jump body
+label finish
+jump top
+label success
 exit 0
-label self_limited
+label limited
 err limited
 exit 1
-label self_invalid
+label invalid
 err invalid
 exit 1
 end

@@ -3,9 +3,9 @@ bytes message "hello, plang\n"
 bytes limit "plang: memory limit\n"
 
 func main 0
-u64 %r8 64
-alloc %r16 %r8
-zero %r16 failed
+u64 %size 64
+alloc %data %size
+zero %data failed
 out message
 exit 0
 label failed

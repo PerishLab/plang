@@ -49,16 +49,19 @@ compact `opcode arity` table makes the instruction vocabulary data rather than
 a branch forest. It validates its own tokenized source without reconstructing
 source lines or retaining an AST.
 
-`seed/emit.pir` is the first closed compiler stage. It consumes the lexer's
-token stream in one pass and emits linkable arm64 Darwin assembly. The Python
-seed compiles it once; the resulting binary compiles the same source again, and
-the next generation is byte-identical. That rebuilt binary also compiles
-`hello.pir` successfully.
+`seed/lower.pir` consumes the lexer's token stream, assigns each function's
+named registers to consecutive eight-byte frame slots, and qualifies local
+labels with their function name. It retains at most thirty names of sixty-three
+bytes for the active function and streams every other token directly onward.
 
-The closure source deliberately spells virtual registers as their frame offsets
-and gives labels globally unique names. Its emitter implements only the PIR1
-operations needed by itself and the hello fixture, with calls capped at four
-arguments and small immediates emitted through one `movz`. `seed/boot.py`
-remains the broader PIR1 oracle. Closing this smaller fixed point first makes
-each missing facility explicit instead of hiding a register allocator, symbol
-table, or full numeric parser in the trusted seed.
+`seed/emit.pir` consumes that normalized stream in one pass and emits linkable
+arm64 Darwin assembly. The Python seed compiles both members once; the resulting
+pair compiles both sources again, and the next generation is byte-identical.
+The rebuilt pair also compiles `hello.pir` successfully.
+
+The emitter implements only the PIR1 operations needed by the pair and hello
+fixture, with calls capped at four arguments and small immediates emitted through
+one `movz`. `seed/boot.py` remains the broader PIR1 oracle. The lowering pass is
+deliberately not a general symbol table or AST: it is the smallest stateful
+stream transform that restores readable names without widening the trusted
+backend.

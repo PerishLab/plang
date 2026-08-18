@@ -14,19 +14,19 @@ arbitrarily long source file through one 4 KiB buffer and validates its byte
 surface without retaining the source. It exercises calls, branches, memory,
 argv, and bounded stream processing.
 
-The first closure is now closed. Python builds `emit0`; `emit0` rebuilds
-`emit1`; and `emit1` rebuilds byte-identical assembly. The rebuilt compiler also
-compiles and runs `hello.pir`. Python remains as a readable oracle and test
-fixture, but is no longer required to reproduce this compiler stage once an
-`emit1` binary exists.
+The first closure is now closed around a lowering pass and emitter. Python
+builds `lower0` and `emit0`; that pair rebuilds `lower1` and `emit1`; and the
+rebuilt pair emits byte-identical assembly for both members. It also compiles
+and runs `hello.pir`. Python remains as a readable oracle and test fixture, but
+is no longer required to reproduce this compiler stage once the pair exists.
 
-The fixed-point profile is intentionally smaller than all of PIR1. Its source
-uses explicit frame slots (`%r8`, `%r16`, ...), globally unique labels, u64
-immediates that fit one `movz`, and calls of at most four arguments. These are
-seed constraints, not proposed surface-language semantics. They avoid pulling
-a symbol table, integer parser, or general register allocator into the first
-closure. Later stages can add channels, structured IR, syntax, types, and macros
-from inside it.
+`lower.pir` assigns named registers to explicit frame slots and scopes labels by
+function while retaining only one function's small symbol map. `emit.pir`
+consumes that normalized token stream. The fixed-point emitter remains smaller
+than all of PIR1: u64 immediates fit one `movz`, calls have at most four
+arguments, and only operations used by the pair are implemented. These are seed
+constraints, not proposed surface-language semantics. Later stages can add
+channels, structured IR, syntax, types, and macros from inside the closure.
 
 Build the current vertical slice with:
 

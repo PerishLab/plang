@@ -10,13 +10,13 @@ func
 main
 0
 u64
-%r8
+%size
 64
 alloc
-%r16
-%r8
+%data
+%size
 zero
-%r16
+%data
 failed
 out
 message
