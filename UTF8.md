@@ -25,6 +25,20 @@ when no partial scalar remains; truncated close and upstream failure map to
 failed. Invalid continuation, overlong forms, surrogates, values above
 U+10FFFF, and invalid leading bytes reset the partial sequence explicitly.
 
+`seed/utf8-stream.pir` composes that state with the existing bounded byte
+channel. `utf8_stream_recv(channel, state)` repeatedly consumes already-ready
+bytes, returns only on a scalar, true upstream pending, or terminal, and keeps a
+split sequence in a caller-owned 40-byte descriptor (the decoder state plus one
+scratch byte). Capacity-one channel fixtures split 2/3/4-byte scalars at every
+availability boundary and preserve the four statuses through clean close,
+truncated close, and upstream failure.
+
+The shared decoder helpers occupy 345 PIR tokens and the generic channel
+projection wrapper 70. A single shared implementation therefore costs 415
+definition tokens regardless of sites, while inlining only the decoder at two
+sites has a 690-token lower bound before site framing. This is measured evidence
+for shared semantic helpers, not yet a commitment to the surface atom syntax.
+
 Static `bytes` declarations are transport, not Unicode syntax. A raw UTF-8
 literal such as `"λ你好😀"` reaches the assembler as the same source bytes;
 neither lower nor emit interprets code points. JSON `\uXXXX` decoding,
