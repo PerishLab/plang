@@ -36,15 +36,9 @@ func scheduler_enqueue 2
 arg %scheduler 0
 arg %task 1
 u64 %zero 0
-u64 %writer_wait 3
-u64 %runnable 4
-u64 %placement_at 56
-load64 %placement %task %placement_at
-le %test %placement %writer_wait
+u64 %policy 4
+call %test fifo_push 4 %scheduler %zero %task %policy
 zero %test full
-call %test fifo_push 3 %scheduler %zero %task
-zero %test full
-store64 %task %placement_at %runnable
 ret %test
 label full
 ret %zero
@@ -79,7 +73,7 @@ label store
 sub %count %count %one
 store64 %scheduler %read_at %read
 store64 %scheduler %count_at %count
-store64 %task %placement_at %one
+store64 %task %placement_at %zero
 ret %task
 label empty
 ret %zero
@@ -141,15 +135,28 @@ label failed
 ret %zero
 end
 
-func fifo_push 3
+func fifo_push 4
 arg %owner 0
 arg %base 1
 arg %item 2
+arg %policy 3
 u64 %zero 0
 u64 %one 1
+u64 %writer_wait 3
+u64 %runnable 4
 u64 %eight 8
 u64 %twenty_four 24
 u64 %thirty_two 32
+u64 %placement_at 56
+load64 %placement %item %placement_at
+eq %test %policy %runnable
+nonzero %test range
+zero %placement validated
+jump full
+label range
+le %test %placement %writer_wait
+zero %test full
+label validated
 load64 %items %owner %base
 add %field %base %eight
 load64 %capacity %owner %field
@@ -170,6 +177,7 @@ add %count %count %one
 add %field %base %twenty_four
 store64 %owner %field %write
 store64 %owner %count_at %count
+store64 %item %placement_at %policy
 ret %one
 label full
 ret %zero
@@ -234,26 +242,20 @@ end
 func channel_write_wait 2
 arg %channel 0
 arg %task 1
-u64 %running 1
-u64 %writer_wait 3
+u64 %policy 3
 u64 %task_scheduler_at 16
 u64 %capacity_at 8
 u64 %count_at 32
 u64 %state_at 40
 u64 %waiters_at 88
-u64 %placement_at 56
 load64 %state %channel %state_at
 nonzero %state ready
 load64 %capacity %channel %capacity_at
 load64 %count %channel %count_at
 eq %test %count %capacity
 zero %test ready
-load64 %placement %task %placement_at
-eq %test %placement %running
+call %test fifo_push 4 %channel %waiters_at %task %policy
 zero %test failed
-call %test fifo_push 3 %channel %waiters_at %task
-zero %test failed
-store64 %task %placement_at %writer_wait
 ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
@@ -266,23 +268,17 @@ end
 func channel_wait 2
 arg %channel 0
 arg %task 1
-u64 %running 1
-u64 %reader_wait 2
+u64 %policy 2
 u64 %task_scheduler_at 16
 u64 %count_at 32
 u64 %state_at 40
 u64 %waiters_at 48
-u64 %placement_at 56
 load64 %count %channel %count_at
 nonzero %count ready
 load64 %state %channel %state_at
 nonzero %state ready
-load64 %placement %task %placement_at
-eq %test %placement %running
+call %test fifo_push 4 %channel %waiters_at %task %policy
 zero %test failed
-call %test fifo_push 3 %channel %waiters_at %task
-zero %test failed
-store64 %task %placement_at %reader_wait
 ret %test
 label ready
 load64 %scheduler %task %task_scheduler_at
@@ -297,7 +293,6 @@ arg %channel 0
 arg %value 1
 u64 %zero 0
 u64 %one 1
-u64 %detached 6
 u64 %closed 2
 u64 %buffer_at 0
 u64 %capacity_at 8
@@ -425,6 +420,7 @@ arg %channel 2
 arg %target 3
 u64 %zero 0
 u64 %one 1
+u64 %detached 6
 u64 %bytes 64
 u64 %resume_at 0
 u64 %pc_at 8
@@ -453,7 +449,7 @@ eq %test %attached %capacity
 nonzero %test failed
 add %attached %attached %one
 store64 %scheduler %attached_at %attached
-store64 %task %placement_at %zero
+store64 %task %placement_at %one
 label ready
 ret %task
 label failed
@@ -608,7 +604,6 @@ end
 func task_resume 1
 arg %task 0
 u64 %zero 0
-u64 %running 1
 u64 %done 5
 u64 %failed 3
 u64 %resume_at 0
@@ -617,18 +612,15 @@ load64 %resume %task %resume_at
 invoke %result %resume 1 %task
 zero %result suspended
 load64 %placement %task %placement_at
-ne %test %placement %running
-nonzero %test invalid
+nonzero %placement invalid
 store64 %task %placement_at %done
 ret %result
 label suspended
 load64 %placement %task %placement_at
-ne %test %placement %running
-nonzero %test valid
+zero %placement invalid
+ret %zero
 label invalid
 ret %failed
-label valid
-ret %zero
 end
 
 func scheduler_run 2
@@ -662,8 +654,10 @@ u64 %one 1
 u64 %two 2
 u64 %failed 3
 u64 %full 4
+u64 %detached 6
 u64 %a 65
 u64 %b 66
+u64 %placement_at 56
 call %channel channel_new 2 %two %one
 zero %channel bad
 call %collector collector_new 1 %one
@@ -678,6 +672,9 @@ call %status channel_close 1 %channel
 zero %status bad
 call %task task_new 4 %zero %zero %channel %collector
 zero %task bad
+load64 %placement %task %placement_at
+ne %test %placement %detached
+nonzero %test bad
 call %status collect_status 1 %task
 ne %test %status %full
 nonzero %test bad

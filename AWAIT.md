@@ -22,9 +22,14 @@ suspended without leaving `running` are therefore explicit contract failures.
 Detached tasks remain valid for direct synchronous contracts.
 
 The encoding is chosen to make the transition law small, not to expose a
-surface ABI: `new=0`, `running=1`, `reader-wait=2`, and `writer-wait=3` are the
+surface ABI: `running=0`, `new=1`, `reader-wait=2`, and `writer-wait=3` are the
 only states accepted by enqueue; `runnable=4`, `done=5`, and `detached=6` are
-rejected by one bounded range check. Dequeue requires exactly `runnable` and
+rejected by one bounded range check. Wait registration accepts only the
+singleton interval `running=0`; the push policy is its target placement, with
+`runnable=4` selecting the scheduler interval and waiter targets selecting the
+singleton. This stays within the four-argument seed ABI and the self-hosted
+emitter's current opcode set. Dequeue
+requires exactly `runnable` and
 changes it to `running` only when the FIFO commit occurs. An invalid queue head
 is reported to `scheduler_run` through a private sentinel and becomes scheduler
 failure rather than false idle.
@@ -45,7 +50,9 @@ observe terminal rejection. The canonical fixture deliberately uses a one-byte
 channel, forcing the `A/B/C` producer to suspend and retry without polling or
 allocating after construction.
 
-The runnable queue and both waiter queues share one bounded FIFO push kernel.
+The runnable queue and both waiter queues share one placement-aware bounded
+FIFO push kernel. It receives an allowed placement interval and target state,
+validates before touching the queue, and commits the target only after the push.
 Each queue has a 40-byte descriptor `{items, capacity, read, write, count}` at
 its owner's base offset 0, 48, or 88. Waiter wake keeps its transactional rule:
 enqueue the task first and consume the waiter only after enqueue succeeds. The
