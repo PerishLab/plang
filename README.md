@@ -95,6 +95,10 @@ sh seed/report.sh           # size, arena, and duplicate-helper measurement
 is not a cold-bootstrap dependency, and `check-bootstrap.sh` rejects any Python
 reference in the bootstrap path.
 
+`crates/` is a Rust workspace reserved for the work the closure cannot discharge
+from inside PIR1; a surface elaborator is the first such obligation. It carries
+no compiler today.
+
 ## Pending
 
 A second backend targeting LLVM IR is under consideration, which would make the
