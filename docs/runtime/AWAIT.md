@@ -74,13 +74,13 @@ Its saturated case uses capacity two: one task is runnable, one is waiting, the
 wake fills the queue exactly, and construction of a third attached task fails.
 The producer's three sends now use `@await.send`, which preserves the explicit
 status of `@channel.send` while lowering the surrounding wait/retry state
-machine to ordinary PIR1. See `SEND.md` and `ASYNC.md`.
+machine to ordinary PIR1. See `../atoms/SEND.md` and `../atoms/ASYNC.md`.
 
 A second scheduled consumer uses `@stream.collect` over another `ABC` channel.
 It suspends before the producer runs, wakes once, drains the finite stream into
 one preallocated collector, and prints `ABCcollect ok`. Separate terminal
 contracts prove a drained failed channel produces status `3` and the first byte
-beyond collector capacity produces status `4`. See `COLLECT.md` for the
+beyond collector capacity produces status `4`. See `../atoms/COLLECT.md` for the
 descriptor ABI and pass-order law.
 
 This is the intended compiler shape for a default-await projection: local values

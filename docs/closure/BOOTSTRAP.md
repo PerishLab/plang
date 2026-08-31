@@ -43,7 +43,7 @@ align with channels. `utf8-stream.pir` then composes it with the existing
 capacity-one byte channel across every multi-byte availability boundary.
 `utf8-pass.pir` lowers `@stream.utf8` call sites and injects that ordinary PIR
 helper closure exactly once per program, with byte-identical self-hosted and
-fixed-point generations. See `UTF8.md`.
+fixed-point generations. See `../atoms/UTF8.md`.
 The lowerer rejects function declarations wider than eight. Argument indices
 are checked against a per-function assembler constant, keeping that local
 validation outside runtime code and avoiding mutable cross-helper compiler
@@ -120,30 +120,31 @@ sh seed/check.sh
 
 `seed/channel.pir` is the first program built on top of the closed pair. It
 implements a fixed-capacity byte channel whose receive result distinguishes
-pending, value, closed, and failed states. See `CHANNEL.md` for the executable
-ABI and the semantics intentionally deferred to later stages.
+pending, value, closed, and failed states. See `../runtime/CHANNEL.md` for
+the executable ABI and the semantics intentionally deferred to later stages.
 
 `seed/await.pir` then adds a preallocated FIFO scheduler, separate channel reader
 and writer waiter queues,
 and explicit task continuation. It demonstrates a consumer suspending without
 polling, being woken by a producer, yielding between values, and observing the
-terminal state after drain. See `AWAIT.md` for the lowering contract.
+terminal state after drain. See `../runtime/AWAIT.md` for the lowering contract.
 
 The hand-written resume state machine has now been replaced by the first
 self-hosted atom pass. `seed/async.pir` expands bounded `@async`, `@state`, and
 `@await.recv` markers before ordinary PIR1 lowering; the rebuilt pass reaches
-the same byte-identical compiler fixed point. See `ASYNC.md` for the local
-framing and resource contract.
+the same byte-identical compiler fixed point. See `../atoms/ASYNC.md` for
+the local framing and resource contract.
 
 `seed/collect.pir` is the second self-hosted atom pass. It lowers a bounded byte
 stream projection into `@await.recv`, so its executable dependency is
 `collect -> async -> lower -> emit`; reversing the atom passes is an explicit
-rejected fixture rather than an assumed commutation law. See `COLLECT.md`.
+rejected fixture rather than an assumed commutation law. See
+`../atoms/COLLECT.md`.
 
 `seed/send.pir` adds explicit synchronous `@channel.send` lowering. It commutes
 with both collect and async despite overlapping runtime channel effects, proving
 that runtime READS/WRITES and compiler transform dependencies are distinct.
-See `SEND.md`.
+See `../atoms/SEND.md`.
 
 `seed/meta.pir` now derives that dependency order from the bounded atom
 manifest, proves primary framing plus constant/affine auxiliary/extension expansion/work,
@@ -152,7 +153,7 @@ fixed point. It settles zero-use atom nodes without launching their identity
 executables or charging compile work, while upstream emissions still activate
 dependent consumers before selection. A thin shell adapter
 remains the platform transport for starting the ordered streaming executables.
-See `META.md`.
+See `../atoms/META.md`.
 
 Compiler-pass arenas are now program-owned profiles rather than one runtime
 constant: lex, meta, send, collect, async, utf8-pass, and lower use 8 KiB; emit

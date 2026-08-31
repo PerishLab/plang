@@ -66,7 +66,7 @@ oracle and self-hosted emitter; neither layer assigns them JSON or Unicode
 semantics. Raw UTF-8 source bytes therefore pass through unchanged, while
 Unicode escape decoding is a higher semantic transform. `seed/utf8.pir` proves
 that scalar-to-UTF-8 encoding is expressible with existing PIR1 operations and
-explicit statuses. See `UTF8.md`.
+explicit statuses. See `../atoms/UTF8.md`.
 
 `seed/decode.pir` consumes that stream through another fixed 4 KiB window. Its
 compact `opcode arity` table makes the instruction vocabulary data rather than
@@ -108,21 +108,21 @@ graph: branches remain the trusted PIR author's responsibility.
 `seed/async.pir` is the first self-hosted semantic-atom pass in front of that
 pair. It expands locally framed `@async`, `@state`, and `@await.recv` markers
 without retaining an AST, and is itself rebuilt to a byte-identical fixed
-point. See `ASYNC.md` for its bounds and explicit failure contract.
+point. See `../atoms/ASYNC.md` for its bounds and explicit failure contract.
 
 `seed/collect.pir` precedes async lowering and expands bounded
 `@stream.collect` projections into `@await.recv`. This establishes the first
-tested dependency edge between atom passes. See `COLLECT.md`.
+tested dependency edge between atom passes. See `../atoms/COLLECT.md`.
 
 `seed/send.pir` expands explicit non-blocking channel sends. Its byte-identical
 commutation with collect and async separates runtime effects from compiler pass
-dependencies. See `SEND.md`.
+dependencies. See `../atoms/SEND.md`.
 
 `seed/meta.pir` reads up to eight atom records, derives pass order from consumed
 and emitted markers, and proves primary framing, constant/affine auxiliary and extension
 expansion, emission multiplicity, and cumulative work against an explicit budget. It is
 self-hosted; only process transport remains in `seed/run-atoms.sh`. See
-`META.md`.
+`../atoms/META.md`.
 
 The emitter implements the listed arithmetic, bitwise, comparison, memory, and
 control operations needed by the closure fixtures. Calls and invokes use all
