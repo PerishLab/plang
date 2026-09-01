@@ -1,0 +1,7 @@
+#func answer() -> u32 {
+    return 7
+}
+
+#func main() -> u32 {
+    return answer()
+}
