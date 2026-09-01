@@ -195,9 +195,10 @@ class Leave:
 
 
 class Call:
-    def __init__(self, name, args, line):
+    def __init__(self, name, args, labels, line):
         self.name = name
         self.args = args
+        self.labels = labels
         self.line = line
 
 
@@ -224,13 +225,6 @@ class Read:
 class Truth:
     def __init__(self, value, line):
         self.value = value
-        self.line = line
-
-
-class Make:
-    def __init__(self, name, fields, line):
-        self.name = name
-        self.fields = fields
         self.line = line
 
 
@@ -380,7 +374,7 @@ class Parser:
 
     def switch(self):
         head = self.take()
-        scrutinee = self.expression(0, True)
+        scrutinee = self.expression()
         self.expect("punct", "{")
         arms = []
         while not self.sees("}"):
@@ -399,24 +393,24 @@ class Parser:
         self.take()
         return Switch(scrutinee, arms, head.line)
 
-    def expression(self, level=0, bare=False):
+    def expression(self, level=0):
         if level == len(LEVELS):
-            return self.suffix(bare)
-        left = self.expression(level + 1, bare)
+            return self.suffix()
+        left = self.expression(level + 1)
         while self.peek().kind == "punct" and self.peek().text in LEVELS[level]:
             op = self.take()
-            right = self.expression(level + 1, bare)
+            right = self.expression(level + 1)
             left = Binary(op.text, left, right, op.line)
         return left
 
-    def suffix(self, bare):
-        node = self.primary(bare)
+    def suffix(self):
+        node = self.primary()
         while self.sees("."):
             dot = self.take()
             node = Pick(node, self.identifier().text, dot.line)
         return node
 
-    def primary(self, bare):
+    def primary(self):
         token = self.take()
         if token.kind == "number":
             return Number(int(token.text), token.line)
@@ -433,21 +427,18 @@ class Parser:
         if self.sees("("):
             self.take()
             args = []
+            labels = []
             while not self.sees(")"):
                 if args:
                     self.expect("punct", ",")
+                if self.peek().kind == "name" and self.sees(":", 1):
+                    labels.append(self.identifier().text)
+                    self.take()
+                else:
+                    labels.append(None)
                 args.append(self.expression())
             self.take()
-            return Call(token.text, args, token.line)
-        if self.sees("{") and not bare:
-            self.take()
-            fields = []
-            while not self.sees("}"):
-                name = self.identifier()
-                self.expect("punct", ":")
-                fields.append((name.text, self.expression(), name.line))
-            self.take()
-            return Make(token.text, fields, token.line)
+            return Call(token.text, args, labels, token.line)
         return Read(token.text, token.line)
 
 
@@ -748,24 +739,6 @@ class Emitter:
                           % (out, self.machine(kind, node.line), slot))
                 return out, kind
             return self.variant(node.name, None, want, node.line)
-        if isinstance(node, Make):
-            shape = self.product(node.name, node.line)
-            names = [f.name for f in shape.fields]
-            given = [g[0] for g in node.fields]
-            if given != names:
-                raise Fault(self.path, node.line,
-                            "%s wants the fields %s in order, found %s"
-                            % (node.name, ", ".join(names), ", ".join(given)))
-            value = "undef"
-            for index, (name, expr, line) in enumerate(node.fields):
-                inner = self.expression(expr, shape.fields[index].kind)
-                out = self.temp()
-                self.emit("  %s = insertvalue %%%s %s, %s %s, %d"
-                          % (out, node.name, value,
-                             self.machine(shape.fields[index].kind, line),
-                             inner, index))
-                value = out
-            return value, node.name
         if isinstance(node, Pick):
             target, kind = self.value(node.target, None)
             shape = self.product(kind, node.line)
@@ -778,6 +751,12 @@ class Emitter:
             raise Fault(self.path, node.line,
                         "%s has no field named %s" % (kind, node.field))
         if isinstance(node, Call):
+            if node.name in self.shapes:
+                return self.make(node)
+            if any(label is not None for label in node.labels):
+                raise Fault(self.path, node.line,
+                            "only a #struct takes named fields, and %s is not one"
+                            % node.name)
             if node.name not in self.funcs:
                 return self.variant(node.name, node.args, want, node.line)
             callee = self.funcs[node.name]
@@ -818,6 +797,25 @@ class Emitter:
                       % (out, ARITH[node.op], SCALARS[kind], left, right))
             return out, kind
         raise Fault(self.path, 0, "cannot emit %r" % node)
+
+    def make(self, node):
+        shape = self.product(node.name, node.line)
+        names = [f.name for f in shape.fields]
+        if node.labels != names:
+            shown = [label if label else "?" for label in node.labels]
+            raise Fault(self.path, node.line,
+                        "%s wants the fields %s in order, found %s"
+                        % (node.name, ", ".join(names), ", ".join(shown) or "none"))
+        value = "undef"
+        for index, expr in enumerate(node.args):
+            field = shape.fields[index]
+            inner = self.expression(expr, field.kind)
+            out = self.temp()
+            self.emit("  %s = insertvalue %%%s %s, %s %s, %d"
+                      % (out, node.name, value,
+                         self.machine(field.kind, field.line), inner, index))
+            value = out
+        return value, node.name
 
     def variant(self, name, args, want, line):
         if want is None or want not in self.shapes:
