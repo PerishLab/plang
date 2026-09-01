@@ -10,9 +10,9 @@ import sys
 WORD = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 DIGIT = "0123456789"
 PUNCT = ["->", "==", "!=", "<=", ">=", "{", "}", "(", ")", ",", ":", "=",
-         "<", ">", "+", "-", "*", "/"]
+         "<", ">", "+", "-", "*", "/", "."]
 
-TYPES = {"u8": "i8", "u32": "i32", "u64": "i64", "bool": "i1"}
+SCALARS = {"u8": "i8", "u32": "i32", "u64": "i64", "bool": "i1"}
 NUMERIC = ["u8", "u32", "u64"]
 ARITH = {"+": "add", "-": "sub", "*": "mul", "/": "udiv"}
 COMPARE = {"==": "eq", "!=": "ne", "<": "ult", ">": "ugt", "<=": "ule", ">=": "uge"}
@@ -21,6 +21,7 @@ LEVELS = [["==", "!=", "<", ">", "<=", ">="], ["+", "-"], ["*", "/"]]
 RESERVED = ["const", "let", "return", "break", "continue"]
 BOOLS = {"true": "1", "false": "0"}
 PARAM_LIMIT = 4
+CARRIER = "i64"
 
 
 def plural(count, one, many):
@@ -107,6 +108,34 @@ def lex(path, source):
     return tokens
 
 
+class Field:
+    def __init__(self, name, kind, line):
+        self.name = name
+        self.kind = kind
+        self.line = line
+
+
+class Variant:
+    def __init__(self, name, payload, line):
+        self.name = name
+        self.payload = payload
+        self.line = line
+
+
+class Product:
+    def __init__(self, name, fields, line):
+        self.name = name
+        self.fields = fields
+        self.line = line
+
+
+class Sum:
+    def __init__(self, name, variants, line):
+        self.name = name
+        self.variants = variants
+        self.line = line
+
+
 class Func:
     def __init__(self, name, params, result, body, line):
         self.name = name
@@ -114,12 +143,6 @@ class Func:
         self.result = result
         self.body = body
         self.line = line
-
-
-class Param:
-    def __init__(self, name, kind):
-        self.name = name
-        self.kind = kind
 
 
 class Bind:
@@ -141,6 +164,33 @@ class Store:
 class Return:
     def __init__(self, value, line):
         self.value = value
+        self.line = line
+
+
+class Arm:
+    def __init__(self, name, binding, body, line):
+        self.name = name
+        self.binding = binding
+        self.body = body
+        self.line = line
+
+
+class Switch:
+    def __init__(self, scrutinee, arms, line):
+        self.scrutinee = scrutinee
+        self.arms = arms
+        self.line = line
+
+
+class Loop:
+    def __init__(self, body, line):
+        self.body = body
+        self.line = line
+
+
+class Leave:
+    def __init__(self, again, line):
+        self.again = again
         self.line = line
 
 
@@ -177,29 +227,17 @@ class Truth:
         self.line = line
 
 
-class Arm:
-    def __init__(self, name, body, line):
+class Make:
+    def __init__(self, name, fields, line):
         self.name = name
-        self.body = body
+        self.fields = fields
         self.line = line
 
 
-class Switch:
-    def __init__(self, scrutinee, arms, line):
-        self.scrutinee = scrutinee
-        self.arms = arms
-        self.line = line
-
-
-class Loop:
-    def __init__(self, body, line):
-        self.body = body
-        self.line = line
-
-
-class Leave:
-    def __init__(self, again, line):
-        self.again = again
+class Pick:
+    def __init__(self, target, field, line):
+        self.target = target
+        self.field = field
         self.line = line
 
 
@@ -209,16 +247,16 @@ class Parser:
         self.tokens = tokens
         self.at = 0
 
-    def peek(self):
-        return self.tokens[self.at]
+    def peek(self, ahead=0):
+        return self.tokens[min(self.at + ahead, len(self.tokens) - 1)]
 
     def take(self):
         token = self.tokens[self.at]
         self.at += 1
         return token
 
-    def sees(self, text):
-        token = self.peek()
+    def sees(self, text, ahead=0):
+        token = self.peek(ahead)
         return token.kind in ("punct", "name") and token.text == text
 
     def expect(self, kind, text=None):
@@ -236,32 +274,63 @@ class Parser:
                         "%s is reserved and cannot be a name" % token.text)
         return token
 
-    def kind(self):
-        token = self.expect("name")
-        if token.text not in TYPES:
-            raise Fault(self.path, token.line, "unknown type %s" % token.text)
-        return token.text
-
     def program(self):
         items = []
         while self.peek().kind != "end":
-            items.append(self.func())
+            head = self.peek()
+            if head.kind != "keyword":
+                raise Fault(self.path, head.line,
+                            "expected a declaration, found %r" % head.text)
+            if head.text == "#type":
+                items.append(self.shape())
+            elif head.text == "#func":
+                items.append(self.func())
+            else:
+                raise Fault(self.path, head.line,
+                            "%s is not available in this subset" % head.text)
         return items
 
+    def shape(self):
+        head = self.take()
+        name = self.identifier()
+        self.expect("punct", "=")
+        body = self.expect("keyword")
+        if body.text == "#struct":
+            self.expect("punct", "{")
+            fields = []
+            while not self.sees("}"):
+                field = self.identifier()
+                self.expect("punct", ":")
+                fields.append(Field(field.text, self.identifier().text, field.line))
+            self.take()
+            return Product(name.text, fields, head.line)
+        if body.text == "#enum":
+            self.expect("punct", "{")
+            variants = []
+            while not self.sees("}"):
+                label = self.identifier()
+                payload = None
+                if self.sees("("):
+                    self.take()
+                    payload = self.identifier().text
+                    self.expect("punct", ")")
+                variants.append(Variant(label.text, payload, label.line))
+            self.take()
+            return Sum(name.text, variants, head.line)
+        raise Fault(self.path, body.line,
+                    "a #type is a #struct or a #enum, found %s" % body.text)
+
     def func(self):
-        head = self.expect("keyword")
-        if head.text != "#func":
-            raise Fault(self.path, head.line,
-                        "only #func is available in this subset, found %s" % head.text)
+        head = self.take()
         name = self.identifier().text
         self.expect("punct", "(")
         params = []
         while not self.sees(")"):
             if params:
                 self.expect("punct", ",")
-            field = self.identifier().text
+            field = self.identifier()
             self.expect("punct", ":")
-            params.append(Param(field, self.kind()))
+            params.append(Field(field.text, self.identifier().text, field.line))
         self.take()
         if len(params) > PARAM_LIMIT:
             raise Fault(self.path, head.line,
@@ -269,7 +338,7 @@ class Parser:
                         % (name, plural(len(params), "parameter", "parameters"),
                            PARAM_LIMIT))
         self.expect("punct", "->")
-        return Func(name, params, self.kind(), self.block(), head.line)
+        return Func(name, params, self.identifier().text, self.block(), head.line)
 
     def block(self):
         self.expect("punct", "{")
@@ -296,13 +365,13 @@ class Parser:
             self.take()
             name = self.identifier().text
             self.expect("punct", ":")
-            kind = self.kind()
+            kind = self.identifier().text
             self.expect("punct", "=")
             return Bind(name, kind, self.expression(), token.text == "let", token.line)
         if token.kind == "name" and token.text == "return":
             self.take()
             return Return(self.expression(), token.line)
-        if token.kind == "name" and self.tokens[self.at + 1].text == "=":
+        if token.kind == "name" and self.sees("=", 1):
             name = self.identifier().text
             self.take()
             return Store(name, self.expression(), token.line)
@@ -311,31 +380,43 @@ class Parser:
 
     def switch(self):
         head = self.take()
-        scrutinee = self.expression()
+        scrutinee = self.expression(0, True)
         self.expect("punct", "{")
         arms = []
         while not self.sees("}"):
-            label = self.expect("name")
+            label = self.identifier()
+            binding = None
+            if self.sees("("):
+                self.take()
+                binding = self.identifier().text
+                self.expect("punct", ")")
             self.expect("punct", "->")
             if self.sees("{"):
                 body = self.block()
             else:
                 body = [self.statement()]
-            arms.append(Arm(label.text, body, label.line))
+            arms.append(Arm(label.text, binding, body, label.line))
         self.take()
         return Switch(scrutinee, arms, head.line)
 
-    def expression(self, level=0):
+    def expression(self, level=0, bare=False):
         if level == len(LEVELS):
-            return self.primary()
-        left = self.expression(level + 1)
+            return self.suffix(bare)
+        left = self.expression(level + 1, bare)
         while self.peek().kind == "punct" and self.peek().text in LEVELS[level]:
             op = self.take()
-            right = self.expression(level + 1)
+            right = self.expression(level + 1, bare)
             left = Binary(op.text, left, right, op.line)
         return left
 
-    def primary(self):
+    def suffix(self, bare):
+        node = self.primary(bare)
+        while self.sees("."):
+            dot = self.take()
+            node = Pick(node, self.identifier().text, dot.line)
+        return node
+
+    def primary(self, bare):
         token = self.take()
         if token.kind == "number":
             return Number(int(token.text), token.line)
@@ -343,14 +424,13 @@ class Parser:
             inner = self.expression()
             self.expect("punct", ")")
             return inner
-        if token.kind == "name" and token.text in BOOLS and not self.sees("("):
-            return Truth(token.text, token.line)
-        if token.kind == "name":
-            if token.text in RESERVED:
-                raise Fault(self.path, token.line,
-                            "%s is reserved and cannot be a name" % token.text)
-            if not self.sees("("):
-                return Read(token.text, token.line)
+        if token.kind != "name":
+            raise Fault(self.path, token.line,
+                        "expected an expression, found %r" % token.text)
+        if token.text in RESERVED:
+            raise Fault(self.path, token.line,
+                        "%s is reserved and cannot be a name" % token.text)
+        if self.sees("("):
             self.take()
             args = []
             while not self.sees(")"):
@@ -359,19 +439,34 @@ class Parser:
                 args.append(self.expression())
             self.take()
             return Call(token.text, args, token.line)
-        raise Fault(self.path, token.line,
-                    "expected an expression, found %r" % token.text)
+        if self.sees("{") and not bare:
+            self.take()
+            fields = []
+            while not self.sees("}"):
+                name = self.identifier()
+                self.expect("punct", ":")
+                fields.append((name.text, self.expression(), name.line))
+            self.take()
+            return Make(token.text, fields, token.line)
+        return Read(token.text, token.line)
 
 
 class Emitter:
-    def __init__(self, path, funcs):
+    def __init__(self, path, items):
         self.path = path
-        self.order = funcs
+        self.shapes = {}
         self.funcs = {}
-        for func in funcs:
-            if func.name in self.funcs:
-                raise Fault(path, func.line, "%s is defined twice" % func.name)
-            self.funcs[func.name] = func
+        self.order = []
+        for item in items:
+            if isinstance(item, Func):
+                if item.name in self.funcs:
+                    raise Fault(path, item.line, "%s is defined twice" % item.name)
+                self.funcs[item.name] = item
+                self.order.append(item)
+            else:
+                if item.name in self.shapes or item.name in SCALARS:
+                    raise Fault(path, item.line, "%s is defined twice" % item.name)
+                self.shapes[item.name] = item
         self.lines = []
         self.slots = {}
         self.next = 0
@@ -401,9 +496,36 @@ class Emitter:
             return
         self.lines.append(text)
 
+    def machine(self, kind, line):
+        if kind in SCALARS:
+            return SCALARS[kind]
+        if kind in self.shapes:
+            return "%" + kind
+        raise Fault(self.path, line, "unknown type %s" % kind)
+
+    def product(self, kind, line):
+        shape = self.shapes.get(kind)
+        if not isinstance(shape, Product):
+            raise Fault(self.path, line, "%s is not a #struct" % kind)
+        return shape
+
+    def sum(self, kind, line):
+        shape = self.shapes.get(kind)
+        if not isinstance(shape, Sum):
+            raise Fault(self.path, line, "%s is not a #enum" % kind)
+        return shape
+
     def program(self):
         self.lines.append('target triple = "%s"' % triple())
         self.lines.append("")
+        for name, shape in self.shapes.items():
+            if isinstance(shape, Product):
+                inner = ", ".join(self.machine(f.kind, f.line) for f in shape.fields)
+            else:
+                inner = "i32, " + CARRIER
+            self.lines.append("%%%s = type { %s }" % (name, inner))
+        if self.shapes:
+            self.lines.append("")
         for func in self.order:
             self.func(func)
         return "\n".join(self.lines) + "\n"
@@ -414,14 +536,14 @@ class Emitter:
         self.slots = {}
         self.done = False
         self.loops = []
-        head = ", ".join("%s %%p%d" % (TYPES[p.kind], n)
+        head = ", ".join("%s %%p%d" % (self.machine(p.kind, p.line), n)
                          for n, p in enumerate(func.params))
         self.lines.append("define %s @%s(%s) {"
-                          % (TYPES[func.result], func.name, head))
+                          % (self.machine(func.result, func.line), func.name, head))
         for n, param in enumerate(func.params):
-            slot = self.bind(param.name, param.kind, False, func.line)
+            slot = self.bind(param.name, param.kind, False, param.line)
             self.lines.append("  store %s %%p%d, ptr %s"
-                              % (TYPES[param.kind], n, slot))
+                              % (self.machine(param.kind, param.line), n, slot))
         for statement in func.body:
             self.statement(func, statement)
         if not self.done:
@@ -434,7 +556,7 @@ class Emitter:
         if name in self.slots:
             raise Fault(self.path, line, "%s is already bound" % name)
         slot = "%s" + str(len(self.slots))
-        self.lines.append("  %s = alloca %s" % (slot, TYPES[kind]))
+        self.emit("  %s = alloca %s" % (slot, self.machine(kind, line)))
         self.slots[name] = (slot, kind, movable)
         return slot
 
@@ -449,7 +571,7 @@ class Emitter:
             slot = self.bind(statement.name, statement.kind,
                              statement.movable, statement.line)
             self.emit("  store %s %s, ptr %s"
-                      % (TYPES[statement.kind], value, slot))
+                      % (self.machine(statement.kind, statement.line), value, slot))
             return
         if isinstance(statement, Store):
             slot, kind, movable = self.lookup(statement.name, statement.line)
@@ -458,11 +580,13 @@ class Emitter:
                             "%s is a const and cannot be reassigned"
                             % statement.name)
             value = self.expression(statement.value, kind)
-            self.emit("  store %s %s, ptr %s" % (TYPES[kind], value, slot))
+            self.emit("  store %s %s, ptr %s"
+                      % (self.machine(kind, statement.line), value, slot))
             return
         if isinstance(statement, Return):
             value = self.expression(statement.value, func.result)
-            self.lines.append("  ret %s %s" % (TYPES[func.result], value))
+            self.lines.append("  ret %s %s"
+                              % (self.machine(func.result, statement.line), value))
             self.done = True
             return
         if isinstance(statement, Switch):
@@ -483,21 +607,87 @@ class Emitter:
             return
         raise Fault(self.path, 0, "cannot emit %r" % statement)
 
-    def switch(self, func, node):
-        value = self.expression(node.scrutinee, "bool")
+    def arms(self, node, labels, subject):
         seen = {}
         for arm in node.arms:
-            if arm.name not in BOOLS:
+            if arm.name not in labels:
                 raise Fault(self.path, arm.line,
-                            "bool has no variant named %s" % arm.name)
+                            "%s has no variant named %s" % (subject, arm.name))
             if arm.name in seen:
-                raise Fault(self.path, arm.line,
-                            "%s is matched twice" % arm.name)
+                raise Fault(self.path, arm.line, "%s is matched twice" % arm.name)
             seen[arm.name] = arm
-        missing = [name for name in BOOLS if name not in seen]
+        missing = [name for name in labels if name not in seen]
         if missing:
             raise Fault(self.path, node.line,
-                        "$switch on bool must cover %s" % ", ".join(sorted(missing)))
+                        "$switch on %s must cover %s"
+                        % (subject, ", ".join(sorted(missing))))
+        return seen
+
+    def switch(self, func, node):
+        value, kind = self.value(node.scrutinee, None)
+        if kind == "bool":
+            self.truth(func, node, value)
+            return
+        if kind not in self.shapes or not isinstance(self.shapes[kind], Sum):
+            raise Fault(self.path, node.line,
+                        "$switch needs a bool or a #enum, found %s" % kind)
+        shape = self.shapes[kind]
+        seen = self.arms(node, [v.name for v in shape.variants], kind)
+        tag = self.temp()
+        self.emit("  %s = extractvalue %%%s %s, 0" % (tag, kind, value))
+        held = self.temp()
+        self.emit("  %s = extractvalue %%%s %s, 1" % (held, kind, value))
+        rest = self.mark("rest")
+        table = []
+        blocks = []
+        for index, variant in enumerate(shape.variants):
+            label = self.mark("arm")
+            table.append("i32 %d, label %%%s" % (index, label))
+            blocks.append((label, variant))
+        stuck = self.mark("stuck")
+        self.lines.append("  switch i32 %s, label %%%s [ %s ]"
+                          % (tag, stuck, " ".join(table)))
+        self.done = True
+        self.here(stuck)
+        self.lines.append("  unreachable")
+        self.done = True
+        landed = False
+        for label, variant in blocks:
+            self.here(label)
+            arm = seen[variant.name]
+            if arm.binding is not None:
+                if variant.payload is None:
+                    raise Fault(self.path, arm.line,
+                                "%s carries nothing to bind" % variant.name)
+                keep = dict(self.slots)
+                slot = self.bind(arm.binding, variant.payload, False, arm.line)
+                narrow = self.temp()
+                inner = self.machine(variant.payload, arm.line)
+                if inner == CARRIER:
+                    self.emit("  %s = or %s %s, 0" % (narrow, CARRIER, held))
+                else:
+                    self.emit("  %s = trunc %s %s to %s" % (narrow, CARRIER, held, inner))
+                self.emit("  store %s %s, ptr %s" % (inner, narrow, slot))
+            else:
+                keep = None
+            for inner in arm.body:
+                self.statement(func, inner)
+            if keep is not None:
+                self.slots = keep
+            if not self.done:
+                landed = True
+            self.jump(rest)
+        self.here(rest)
+        if not landed:
+            self.lines.append("  unreachable")
+            self.done = True
+
+    def truth(self, func, node, value):
+        seen = self.arms(node, list(BOOLS), "bool")
+        for arm in seen.values():
+            if arm.binding is not None:
+                raise Fault(self.path, arm.line,
+                            "%s carries nothing to bind" % arm.name)
         yes = self.mark("yes")
         no = self.mark("no")
         rest = self.mark("rest")
@@ -534,31 +724,63 @@ class Emitter:
 
     def expression(self, node, want):
         value, kind = self.value(node, want)
-        if kind != want:
+        if want is not None and kind != want:
             raise Fault(self.path, node.line,
                         "expected %s, found %s" % (want, kind))
         return value
 
     def value(self, node, want):
         if isinstance(node, Truth):
-            if want != "bool":
+            if want not in (None, "bool"):
                 raise Fault(self.path, node.line,
                             "%s is a bool, not a %s" % (node.value, want))
             return BOOLS[node.value], "bool"
         if isinstance(node, Number):
-            if want not in NUMERIC:
-                raise Fault(self.path, node.line,
-                            "a number cannot be a %s" % want)
-            return str(node.value), want
+            kind = want if want is not None else "u32"
+            if kind not in NUMERIC:
+                raise Fault(self.path, node.line, "a number cannot be a %s" % kind)
+            return str(node.value), kind
         if isinstance(node, Read):
-            slot, kind, movable = self.lookup(node.name, node.line)
-            out = self.temp()
-            self.emit("  %s = load %s, ptr %s" % (out, TYPES[kind], slot))
-            return out, kind
+            if node.name in self.slots:
+                slot, kind, movable = self.slots[node.name]
+                out = self.temp()
+                self.emit("  %s = load %s, ptr %s"
+                          % (out, self.machine(kind, node.line), slot))
+                return out, kind
+            return self.variant(node.name, None, want, node.line)
+        if isinstance(node, Make):
+            shape = self.product(node.name, node.line)
+            names = [f.name for f in shape.fields]
+            given = [g[0] for g in node.fields]
+            if given != names:
+                raise Fault(self.path, node.line,
+                            "%s wants the fields %s in order, found %s"
+                            % (node.name, ", ".join(names), ", ".join(given)))
+            value = "undef"
+            for index, (name, expr, line) in enumerate(node.fields):
+                inner = self.expression(expr, shape.fields[index].kind)
+                out = self.temp()
+                self.emit("  %s = insertvalue %%%s %s, %s %s, %d"
+                          % (out, node.name, value,
+                             self.machine(shape.fields[index].kind, line),
+                             inner, index))
+                value = out
+            return value, node.name
+        if isinstance(node, Pick):
+            target, kind = self.value(node.target, None)
+            shape = self.product(kind, node.line)
+            for index, field in enumerate(shape.fields):
+                if field.name == node.field:
+                    out = self.temp()
+                    self.emit("  %s = extractvalue %%%s %s, %d"
+                              % (out, kind, target, index))
+                    return out, field.kind
+            raise Fault(self.path, node.line,
+                        "%s has no field named %s" % (kind, node.field))
         if isinstance(node, Call):
-            callee = self.funcs.get(node.name)
-            if callee is None:
-                raise Fault(self.path, node.line, "no such function %s" % node.name)
+            if node.name not in self.funcs:
+                return self.variant(node.name, node.args, want, node.line)
+            callee = self.funcs[node.name]
             if len(node.args) != len(callee.params):
                 raise Fault(self.path, node.line,
                             "%s takes %s, %d given"
@@ -567,41 +789,76 @@ class Emitter:
                                len(node.args)))
             given = []
             for arg, param in zip(node.args, callee.params):
-                given.append("%s %s" % (TYPES[param.kind],
+                given.append("%s %s" % (self.machine(param.kind, param.line),
                                         self.expression(arg, param.kind)))
             out = self.temp()
             self.emit("  %s = call %s @%s(%s)"
-                              % (out, TYPES[callee.result], node.name,
-                                 ", ".join(given)))
+                      % (out, self.machine(callee.result, node.line), node.name,
+                         ", ".join(given)))
             return out, callee.result
         if isinstance(node, Binary):
             if node.op in COMPARE:
-                inner = "u32" if want == "bool" else want
-                left, kind = self.value(node.left, inner)
+                left, kind = self.value(node.left, None)
+                if kind not in NUMERIC:
+                    raise Fault(self.path, node.line,
+                                "%s cannot be compared" % kind)
                 right = self.expression(node.right, kind)
                 out = self.temp()
                 self.emit("  %s = icmp %s %s %s, %s"
-                                  % (out, COMPARE[node.op], TYPES[kind], left, right))
+                          % (out, COMPARE[node.op], SCALARS[kind], left, right))
                 return out, "bool"
-            if want not in NUMERIC:
+            kind = want if want is not None else "u32"
+            if kind not in NUMERIC:
                 raise Fault(self.path, node.line,
-                            "arithmetic does not produce a %s" % want)
-            left = self.expression(node.left, want)
-            right = self.expression(node.right, want)
+                            "arithmetic does not produce a %s" % kind)
+            left = self.expression(node.left, kind)
+            right = self.expression(node.right, kind)
             out = self.temp()
             self.emit("  %s = %s %s %s, %s"
-                              % (out, ARITH[node.op], TYPES[want], left, right))
-            return out, want
+                      % (out, ARITH[node.op], SCALARS[kind], left, right))
+            return out, kind
         raise Fault(self.path, 0, "cannot emit %r" % node)
+
+    def variant(self, name, args, want, line):
+        if want is None or want not in self.shapes:
+            raise Fault(self.path, line, "%s is not bound" % name)
+        shape = self.sum(want, line)
+        for index, variant in enumerate(shape.variants):
+            if variant.name != name:
+                continue
+            carried = len(args) if args is not None else 0
+            wanted = 1 if variant.payload else 0
+            if carried != wanted:
+                raise Fault(self.path, line,
+                            "%s carries %s" % (name, plural(wanted, "value", "values")))
+            wide = None
+            if variant.payload:
+                inner = self.machine(variant.payload, line)
+                carried = self.expression(args[0], variant.payload)
+                wide = self.temp()
+                if inner == CARRIER:
+                    self.emit("  %s = or %s %s, 0" % (wide, CARRIER, carried))
+                else:
+                    self.emit("  %s = zext %s %s to %s"
+                              % (wide, inner, carried, CARRIER))
+            tagged = self.temp()
+            self.emit("  %s = insertvalue %%%s undef, i32 %d, 0"
+                      % (tagged, want, index))
+            filled = self.temp()
+            self.emit("  %s = insertvalue %%%s %s, %s %s, 1"
+                      % (filled, want, tagged, CARRIER,
+                         wide if wide is not None else "0"))
+            return filled, want
+        raise Fault(self.path, line, "%s has no variant named %s" % (want, name))
 
 
 def compile(path):
     with open(path, "r") as handle:
         source = handle.read()
-    funcs = Parser(path, lex(path, source)).program()
-    if "main" not in [f.name for f in funcs]:
+    items = Parser(path, lex(path, source)).program()
+    if "main" not in [i.name for i in items if isinstance(i, Func)]:
         raise Fault(path, 0, "a puzzle needs a function named main")
-    return Emitter(path, funcs).program()
+    return Emitter(path, items).program()
 
 
 def main(argv):
