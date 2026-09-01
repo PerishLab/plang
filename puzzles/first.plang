@@ -1,7 +1,14 @@
-#func answer() -> u32 {
-    return 7
+#func square(n: u32) -> u32 {
+    return n * n
+}
+
+#func total(a: u32, b: u32) -> u32 {
+    const scaled: u32 = square(a) + b
+    let running: u32 = scaled
+    running = running - 1
+    return running
 }
 
 #func main() -> u32 {
-    return answer()
+    return total(3, 5)
 }

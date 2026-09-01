@@ -9,9 +9,21 @@ import sys
 
 WORD = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 DIGIT = "0123456789"
-PUNCT = ["->", "{", "}", "(", ")", ",", ":", "="]
+PUNCT = ["->", "==", "!=", "<=", ">=", "{", "}", "(", ")", ",", ":", "=",
+         "<", ">", "+", "-", "*", "/"]
 
 TYPES = {"u8": "i8", "u32": "i32", "u64": "i64", "bool": "i1"}
+NUMERIC = ["u8", "u32", "u64"]
+ARITH = {"+": "add", "-": "sub", "*": "mul", "/": "udiv"}
+COMPARE = {"==": "eq", "!=": "ne", "<": "ult", ">": "ugt", "<=": "ule", ">=": "uge"}
+LEVELS = [["==", "!=", "<", ">", "<=", ">="], ["+", "-"], ["*", "/"]]
+
+RESERVED = ["const", "let", "if", "return"]
+PARAM_LIMIT = 4
+
+
+def plural(count, one, many):
+    return "%d %s" % (count, one if count == 1 else many)
 
 
 def triple():
@@ -95,26 +107,67 @@ def lex(path, source):
 
 
 class Func:
-    def __init__(self, name, result, body):
+    def __init__(self, name, params, result, body, line):
         self.name = name
+        self.params = params
         self.result = result
         self.body = body
+        self.line = line
+
+
+class Param:
+    def __init__(self, name, kind):
+        self.name = name
+        self.kind = kind
+
+
+class Bind:
+    def __init__(self, name, kind, value, movable, line):
+        self.name = name
+        self.kind = kind
+        self.value = value
+        self.movable = movable
+        self.line = line
+
+
+class Store:
+    def __init__(self, name, value, line):
+        self.name = name
+        self.value = value
+        self.line = line
+
+
+class Return:
+    def __init__(self, value, line):
+        self.value = value
+        self.line = line
 
 
 class Call:
-    def __init__(self, name, line):
+    def __init__(self, name, args, line):
         self.name = name
+        self.args = args
+        self.line = line
+
+
+class Binary:
+    def __init__(self, op, left, right, line):
+        self.op = op
+        self.left = left
+        self.right = right
         self.line = line
 
 
 class Number:
-    def __init__(self, value):
+    def __init__(self, value, line):
         self.value = value
+        self.line = line
 
 
-class Return:
-    def __init__(self, value):
-        self.value = value
+class Read:
+    def __init__(self, name, line):
+        self.name = name
+        self.line = line
 
 
 class Parser:
@@ -131,6 +184,10 @@ class Parser:
         self.at += 1
         return token
 
+    def sees(self, text):
+        token = self.peek()
+        return token.kind in ("punct", "name") and token.text == text
+
     def expect(self, kind, text=None):
         token = self.take()
         if token.kind != kind or (text is not None and token.text != text):
@@ -138,6 +195,19 @@ class Parser:
             raise Fault(self.path, token.line,
                         "expected %s, found %r" % (wanted, token.text))
         return token
+
+    def identifier(self):
+        token = self.expect("name")
+        if token.text in RESERVED:
+            raise Fault(self.path, token.line,
+                        "%s is reserved and cannot be a name" % token.text)
+        return token
+
+    def kind(self):
+        token = self.expect("name")
+        if token.text not in TYPES:
+            raise Fault(self.path, token.line, "unknown type %s" % token.text)
+        return token.text
 
     def program(self):
         items = []
@@ -150,46 +220,98 @@ class Parser:
         if head.text != "#func":
             raise Fault(self.path, head.line,
                         "only #func is available in this subset, found %s" % head.text)
-        name = self.expect("name").text
+        name = self.identifier().text
         self.expect("punct", "(")
-        self.expect("punct", ")")
+        params = []
+        while not self.sees(")"):
+            if params:
+                self.expect("punct", ",")
+            field = self.identifier().text
+            self.expect("punct", ":")
+            params.append(Param(field, self.kind()))
+        self.take()
+        if len(params) > PARAM_LIMIT:
+            raise Fault(self.path, head.line,
+                        "%s takes %s, the limit is %d"
+                        % (name, plural(len(params), "parameter", "parameters"),
+                           PARAM_LIMIT))
         self.expect("punct", "->")
-        result = self.expect("name")
-        if result.text not in TYPES:
-            raise Fault(self.path, result.line, "unknown type %s" % result.text)
-        return Func(name, result.text, self.block())
+        return Func(name, params, self.kind(), self.block(), head.line)
 
     def block(self):
         self.expect("punct", "{")
         body = []
-        while not (self.peek().kind == "punct" and self.peek().text == "}"):
+        while not self.sees("}"):
             body.append(self.statement())
         self.take()
         return body
 
     def statement(self):
         token = self.peek()
+        if token.kind == "name" and token.text in ("const", "let"):
+            self.take()
+            name = self.identifier().text
+            self.expect("punct", ":")
+            kind = self.kind()
+            self.expect("punct", "=")
+            return Bind(name, kind, self.expression(), token.text == "let", token.line)
         if token.kind == "name" and token.text == "return":
             self.take()
-            return Return(self.expression())
-        raise Fault(self.path, token.line, "expected a statement, found %r" % token.text)
+            return Return(self.expression(), token.line)
+        if token.kind == "name" and self.tokens[self.at + 1].text == "=":
+            name = self.identifier().text
+            self.take()
+            return Store(name, self.expression(), token.line)
+        raise Fault(self.path, token.line,
+                    "expected a statement, found %r" % token.text)
 
-    def expression(self):
+    def expression(self, level=0):
+        if level == len(LEVELS):
+            return self.primary()
+        left = self.expression(level + 1)
+        while self.peek().kind == "punct" and self.peek().text in LEVELS[level]:
+            op = self.take()
+            right = self.expression(level + 1)
+            left = Binary(op.text, left, right, op.line)
+        return left
+
+    def primary(self):
         token = self.take()
         if token.kind == "number":
-            return Number(int(token.text))
-        if token.kind == "name":
-            self.expect("punct", "(")
+            return Number(int(token.text), token.line)
+        if token.kind == "punct" and token.text == "(":
+            inner = self.expression()
             self.expect("punct", ")")
-            return Call(token.text, token.line)
-        raise Fault(self.path, token.line, "expected an expression, found %r" % token.text)
+            return inner
+        if token.kind == "name":
+            if token.text in RESERVED:
+                raise Fault(self.path, token.line,
+                            "%s is reserved and cannot be a name" % token.text)
+            if not self.sees("("):
+                return Read(token.text, token.line)
+            self.take()
+            args = []
+            while not self.sees(")"):
+                if args:
+                    self.expect("punct", ",")
+                args.append(self.expression())
+            self.take()
+            return Call(token.text, args, token.line)
+        raise Fault(self.path, token.line,
+                    "expected an expression, found %r" % token.text)
 
 
 class Emitter:
     def __init__(self, path, funcs):
         self.path = path
-        self.funcs = {f.name: f for f in funcs}
+        self.order = funcs
+        self.funcs = {}
+        for func in funcs:
+            if func.name in self.funcs:
+                raise Fault(path, func.line, "%s is defined twice" % func.name)
+            self.funcs[func.name] = func
         self.lines = []
+        self.slots = {}
         self.next = 0
 
     def temp(self):
@@ -199,36 +321,120 @@ class Emitter:
     def program(self):
         self.lines.append('target triple = "%s"' % triple())
         self.lines.append("")
-        for func in self.funcs.values():
+        for func in self.order:
             self.func(func)
         return "\n".join(self.lines) + "\n"
 
     def func(self, func):
         self.next = 0
-        self.lines.append("define %s @%s() {" % (TYPES[func.result], func.name))
+        self.slots = {}
+        head = ", ".join("%s %%p%d" % (TYPES[p.kind], n)
+                         for n, p in enumerate(func.params))
+        self.lines.append("define %s @%s(%s) {"
+                          % (TYPES[func.result], func.name, head))
+        for n, param in enumerate(func.params):
+            slot = self.bind(param.name, param.kind, False, func.line)
+            self.lines.append("  store %s %%p%d, ptr %s"
+                              % (TYPES[param.kind], n, slot))
+        if not func.body or not isinstance(func.body[-1], Return):
+            raise Fault(self.path, func.line,
+                        "%s must end in a return" % func.name)
         for statement in func.body:
             self.statement(func, statement)
         self.lines.append("}")
         self.lines.append("")
 
+    def bind(self, name, kind, movable, line):
+        if name in self.slots:
+            raise Fault(self.path, line, "%s is already bound" % name)
+        slot = "%s" + str(len(self.slots))
+        self.lines.append("  %s = alloca %s" % (slot, TYPES[kind]))
+        self.slots[name] = (slot, kind, movable)
+        return slot
+
+    def lookup(self, name, line):
+        if name not in self.slots:
+            raise Fault(self.path, line, "%s is not bound" % name)
+        return self.slots[name]
+
     def statement(self, func, statement):
+        if isinstance(statement, Bind):
+            value = self.expression(statement.value, statement.kind)
+            slot = self.bind(statement.name, statement.kind,
+                             statement.movable, statement.line)
+            self.lines.append("  store %s %s, ptr %s"
+                              % (TYPES[statement.kind], value, slot))
+            return
+        if isinstance(statement, Store):
+            slot, kind, movable = self.lookup(statement.name, statement.line)
+            if not movable:
+                raise Fault(self.path, statement.line,
+                            "%s is a const and cannot be reassigned"
+                            % statement.name)
+            value = self.expression(statement.value, kind)
+            self.lines.append("  store %s %s, ptr %s" % (TYPES[kind], value, slot))
+            return
         if isinstance(statement, Return):
-            value = self.expression(statement.value)
+            value = self.expression(statement.value, func.result)
             self.lines.append("  ret %s %s" % (TYPES[func.result], value))
             return
         raise Fault(self.path, 0, "cannot emit %r" % statement)
 
-    def expression(self, node):
+    def expression(self, node, want):
+        value, kind = self.value(node, want)
+        if kind != want:
+            raise Fault(self.path, node.line,
+                        "expected %s, found %s" % (want, kind))
+        return value
+
+    def value(self, node, want):
         if isinstance(node, Number):
-            return str(node.value)
+            if want not in NUMERIC:
+                raise Fault(self.path, node.line,
+                            "a number cannot be a %s" % want)
+            return str(node.value), want
+        if isinstance(node, Read):
+            slot, kind, movable = self.lookup(node.name, node.line)
+            out = self.temp()
+            self.lines.append("  %s = load %s, ptr %s" % (out, TYPES[kind], slot))
+            return out, kind
         if isinstance(node, Call):
             callee = self.funcs.get(node.name)
             if callee is None:
                 raise Fault(self.path, node.line, "no such function %s" % node.name)
-            slot = self.temp()
-            self.lines.append("  %s = call %s @%s()"
-                              % (slot, TYPES[callee.result], node.name))
-            return slot
+            if len(node.args) != len(callee.params):
+                raise Fault(self.path, node.line,
+                            "%s takes %s, %d given"
+                            % (node.name,
+                               plural(len(callee.params), "argument", "arguments"),
+                               len(node.args)))
+            given = []
+            for arg, param in zip(node.args, callee.params):
+                given.append("%s %s" % (TYPES[param.kind],
+                                        self.expression(arg, param.kind)))
+            out = self.temp()
+            self.lines.append("  %s = call %s @%s(%s)"
+                              % (out, TYPES[callee.result], node.name,
+                                 ", ".join(given)))
+            return out, callee.result
+        if isinstance(node, Binary):
+            if node.op in COMPARE:
+                inner = "u32" if want == "bool" else want
+                left, kind = self.value(node.left, inner)
+                right = self.expression(node.right, kind)
+                out = self.temp()
+                self.lines.append("  %s = icmp %s %s %s, %s"
+                                  % (out, COMPARE[node.op], TYPES[kind], left, right))
+                return out, "bool"
+            if want not in NUMERIC:
+                raise Fault(self.path, node.line,
+                            "arithmetic does not produce a %s" % want)
+            left = self.expression(node.left, want)
+            right = self.expression(node.right, want)
+            out = self.temp()
+            self.lines.append("  %s = %s %s %s, %s"
+                              % (out, ARITH[node.op], TYPES[want], left, right))
+            return out, want
         raise Fault(self.path, 0, "cannot emit %r" % node)
 
 
