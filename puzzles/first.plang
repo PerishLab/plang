@@ -1,14 +1,21 @@
-#func square(n: u32) -> u32 {
-    return n * n
-}
-
-#func total(a: u32, b: u32) -> u32 {
-    const scaled: u32 = square(a) + b
-    let running: u32 = scaled
-    running = running - 1
-    return running
+#func collatz(start: u32) -> u32 {
+    let n: u32 = start
+    let steps: u32 = 0
+    $loop {
+        $switch n == 1 {
+            true  -> break
+            false -> {
+                $switch n / 2 * 2 == n {
+                    true  -> n = n / 2
+                    false -> n = n * 3 + 1
+                }
+                steps = steps + 1
+            }
+        }
+    }
+    return steps
 }
 
 #func main() -> u32 {
-    return total(3, 5)
+    return collatz(27)
 }
