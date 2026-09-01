@@ -1,55 +1,50 @@
 # Agents
 
-plang is a language grown outward from a self-hosted compiler closure. PIR1 is
-the disposable representation that closure is written in; it is not the surface
-language. `examples/*.plang` records intent only — no compiler reads those files
-today, and nothing in them should be treated as proved.
+plang is a language being designed from LLVM IR upward.
 
-## Repository
+On 2026-09-01 this repository was reset to zero. The PIR1 self-hosting closure,
+its arm64 Darwin seed, the fifteen specification documents, the three surface
+examples, and the Rust workspace were deleted, along with Plumb, Ectropy and the
+forge workflows. Git history keeps all of it. Nothing in the working tree
+depends on any of it.
 
-- `docs/` holds the specification set in four layers. Read `README.md` first;
-  it carries the reading order and the per-document status table.
-- `seed/` holds the PIR1 compiler closure and its committed cold-start
-  bootstrap. It is the only executable implementation today.
-- `examples/` holds unproved surface-language intent.
-- `crates/api` owns the reusable API surface; `crates/cli` owns command grammar
-  and user-facing output. Dependency direction is `cli -> api`.
+The reset followed from dropping the bump arena. That arena had made a set of
+hard questions look answered when they were only deferred, and it turned memory
+errors into stale reads rather than crashes. Everything the arena shaped went
+with it.
 
-The Rust workspace is the intended host for work the closure cannot discharge
-from inside PIR1 — a surface elaborator is the first such obligation. Its
-product capabilities are otherwise undecided; do not infer a domain model,
-runtime, or backend from the crate names. Add vocabulary only when its behavior
-and ownership have been explicitly settled.
+## Where truth lives
 
-## Cold start
+- **Source** — `puzzles/` holds plang source. It does not exist yet; the
+  language has no implementation.
+- **Decisions** — the Concord task `perish.code/plang-semantic-core-closed`.
+  Read it before proposing anything. Settled rulings are Decisions, open forks
+  are Questions.
 
-The committed seed is arm64 Darwin assembly under
-`seed/bootstrap/arm64-darwin/`, and `seed/bootstrap.sh` hardcodes that path and
-`/usr/bin/clang -arch arm64`. **No `seed/*.sh` script runs on any other
-platform.** On Linux or Windows, read the documents; do not attempt to execute
-or verify the closure locally.
+This repository carries no prose about the design, and none should be added. A
+claim that cannot be executed belongs in Concord, not in a file.
 
-`seed/boot.py` is an independent oracle used for cross-implementation checks. It
-is not a cold-bootstrap dependency, and `seed/check-bootstrap.sh` rejects any
-Python reference in the bootstrap path.
+## Standing language rulings
 
-## Guard
+These survived the reset because they are surface decisions, independent of the
+memory model and the backend:
 
-Run `plumb doctor .` before and after changing repository shape. Before landing,
-run `cargo fmt --all --check`,
-`cargo clippy --locked --workspace --all-targets -- -D warnings`,
-`cargo check --locked --workspace --all-targets --release`,
-`cargo test --locked --workspace`, and `ectropy .`.
+- The source extension is `.plang`. The compilation and distribution unit is a
+  `puzzle`. A puzzle builds to a binary or a `plib`; there is no C library
+  product, and the C ABI stays confined inside a plib.
+- `@import("a.b.c")` binds an already built artifact and never pulls source. It
+  names; the manifest resolves.
+- **plang has no comments.** Text that needs expressing goes through the std
+  trace library, so an explanation is checked by the compiler instead of being
+  left to rot.
 
-Ectropy scans `docs/**/*.md` as well as the Rust sources, so specification prose
-is held to the same structural limits as code.
+The memory model, borrowing, ownership, the type system, the surface syntax and
+the bootstrap host are all open.
 
-Never work or commit directly in the clean `main` integration checkout after
-the initial repository bootstrap. Use a dedicated task branch and land through
-the repository guard.
+## Working here
 
-## Commits
+Bring changes through a task branch.
 
-Subject-only, imperative, lower case, no trailing period — for example
-`separate identity provenance from borrow checking`. One commit per proved
-capability.
+Keep the tree minimal until the skeleton is settled. Plumb, Ectropy and the
+workflows were removed for that reason and should return only when there is
+something for them to guard.

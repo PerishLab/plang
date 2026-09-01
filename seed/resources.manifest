@@ -1,9 +1,0 @@
-lex 4096 buffer=4096
-meta 8064 buffer=4096+operand=64+records=8x416+rules=4x144
-send 4288 buffer=4096+operands=3x64
-collect 4416 buffer=4096+operands=5x64
-async 4416 buffer=4096+operands=5x64
-borrow 4736 buffer=4096+operand=64+records=8x72
-utf8-pass 4288 buffer=4096+operands=3x64
-lower 6208 buffer=4096+symbols=2048+function=64
-emit 20480 operands=5x4096

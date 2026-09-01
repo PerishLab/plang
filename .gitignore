@@ -1,5 +1,3 @@
-target/
 .local/
 .task/
 /build/
-__pycache__/

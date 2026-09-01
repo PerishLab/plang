@@ -1,4 +1,0 @@
-3f55bc992be3953cdc098bf5606abab63a7bcf3e1bf546df5dc558c5552b0f15  seed/bootstrap/arm64-darwin/lex.s
-8e70440b6c6db41d55965e5a9e674363d6dd5da23d1d2d02097c5672b5b59a71  seed/bootstrap/arm64-darwin/lower.s
-f45fc717a96a88d14bd93138546cfdaadf40808728e425dff460d38567c40631  seed/bootstrap/arm64-darwin/emit.s
-e48f956c596e756db330f35558cde1670b20cba3dd9d811e5028ec81c7255eba  seed/arm64-darwin.s
