@@ -17,12 +17,12 @@ with it.
 
 - **Source** — `puzzles/` holds plang source. It does not exist yet; the
   language has no implementation.
-- **Decisions** — the Concord task `perish.code/plang-semantic-core-closed`.
-  Read it before proposing anything. Settled rulings are Decisions, open forks
-  are Questions.
+- **Decisions** — PerishLab/plang#1, the ledger recovered from the retired
+  Concord task `perish.code/plang-semantic-core-closed`. Read it before
+  proposing anything. Settled rulings are Decisions, open forks are Questions.
 
 This repository carries no prose about the design, and none should be added. A
-claim that cannot be executed belongs in Concord, not in a file.
+claim that cannot be executed belongs in that Issue, not in a file.
 
 ## Standing language rulings
 
@@ -43,7 +43,7 @@ the bootstrap host are all open.
 
 ## Working here
 
-Bring changes through a task branch.
+Bring changes through a topic branch.
 
 Keep the tree minimal until the skeleton is settled. Plumb, Ectropy and the
 workflows were removed for that reason and should return only when there is
